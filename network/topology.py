@@ -7,11 +7,17 @@ from mininet.node import Controller
 from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import info, setLogLevel
+
+from mininet.node import RemoteController
+
 setLogLevel('info')
 
 net = Containernet(controller=Controller)
 info('*** Adding controller\n')
-net.addController('c0')
+#net.addController('c0')
+net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
+
+
 info('*** Adding docker containers\n')
 d1 = net.addDocker('d1', ip='10.0.0.251', dimage="ubuntu:trusty")
 d2 = net.addDocker('d2', ip='10.0.0.252', dimage="ubuntu:trusty")
