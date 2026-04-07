@@ -15,7 +15,7 @@ setLogLevel('info')
 net = Containernet(controller=Controller)
 info('*** Adding controller\n')
 #net.addController('c0')
-net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
+net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653) # Connect to Ryu
 
 
 info('*** Adding docker containers\n')
