@@ -11,10 +11,9 @@ This project implements a Moving Target Defense (MTD) mechanism using the Ryu SD
      ```bash
      source ryu-env/bin/activate
      ```
-   - Navigate to the `controller/` directory and run the Ryu application:
+   - Run the Ryu application:
      ```bash
-     cd controller
-     ryu-manager controller.py
+     ryu-manager controller/controller.py
      ```
 2. **Step 2: Run Containernet**
    Note: We must use the specific python path to access containernet libraries
