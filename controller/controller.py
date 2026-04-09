@@ -21,6 +21,7 @@ from ryu.ofproto import ofproto_v1_5
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
+from ryu.lib.packet import ipv4
 
 
 class SimpleSwitch15(app_manager.RyuApp):
@@ -29,9 +30,10 @@ class SimpleSwitch15(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(SimpleSwitch15, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
+        # self.ip_map = {"10.0.0.1": "10.0.0.100"}
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
-    def switch_features_handler(self, ev):
+    def switch_features_handler(self, ev): # Runs when the switch connects to the controller
         datapath = ev.msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -59,14 +61,14 @@ class SimpleSwitch15(app_manager.RyuApp):
                                 match=match, instructions=inst)
         datapath.send_msg(mod)
 
-    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
+    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER) #Packet-in event is triggered when a switch receives a packet for which it has no matching flow entry.
     def _packet_in_handler(self, ev):
+
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         in_port = msg.match['in_port']
-
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocols(ethernet.ethernet)[0]
 
@@ -89,7 +91,22 @@ class SimpleSwitch15(app_manager.RyuApp):
         else:
             out_port = ofproto.OFPP_FLOOD
 
+
+
         actions = [parser.OFPActionOutput(out_port)]
+
+        #IP SHUFFLING LOGIC
+        # pkt_ipv4 = pkt.get_protocol(ipv4.ipv4)
+        # if pkt_ipv4:
+        #     # If the destination IP is in our map, shuffle it!
+        #     if pkt_ipv4.dst in self.ip_map:
+        #         new_ip = self.ip_map[pkt_ipv4.dst]
+        #         self.logger.info("Shuffling IP: %s -> %s", pkt_ipv4.dst, new_ip)
+        #         # Action to rewrite the destination IP
+        #         actions.append(parser.OFPActionSetField(ipv4_dst=new_ip))
+
+
+
 
         # install a flow to avoid packet_in next time
         if out_port != ofproto.OFPP_FLOOD:
