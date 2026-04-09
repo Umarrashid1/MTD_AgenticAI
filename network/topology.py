@@ -14,16 +14,16 @@ def create_topology():
     c0 = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
 
     info('*** Adding Docker containers (External Zone)\n')
-    # Attackers
-    a1 = net.addDocker('a1', ip='10.0.0.11/24', mac='00:00:00:00:00:11', dimage="kalilinux/kali-rolling")
+    # Attacker agent
+    a1 = net.addDocker('a1', ip='10.0.0.11/24', mac='00:00:00:00:00:11', dimage="ubuntu:trusty")
 
     info('*** Adding Docker containers (Internal Zone)\n')
     # Legitimate Client
     c1 = net.addDocker('c1', ip='10.0.0.100/24', mac='00:00:00:00:00:AA', dimage="ubuntu:trusty")
     # Decoy?
-    decoy = net.addDocker('decoy', ip='10.0.0.200/24', mac='00:00:00:00:00:DD', dimage="vulnerables/web-dvwa")
+    decoy = net.addDocker('decoy', ip='10.0.0.200/24', mac='00:00:00:00:00:DD', dimage="ubuntu:trusty")
     # Vulnerable Target
-    target = net.addDocker('target', ip='10.0.0.251/24', mac='00:00:00:00:00:FF', dimage="vulnerables/web-dvwa")
+    target = net.addDocker('target', ip='10.0.0.251/24', mac='00:00:00:00:00:FF', dimage="ubuntu:trusty")
 
     info('*** Adding switches (Core & Edge)\n')
     s1 = net.addSwitch('s1', protocols='OpenFlow15') # Core Switch
