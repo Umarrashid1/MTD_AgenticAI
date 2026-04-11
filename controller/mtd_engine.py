@@ -1,56 +1,83 @@
+# mtd_engine.py
 import random
 import config
 
 class MTDEngine(object):
     """
-    Moving Target Defense Engine responsible for IP Mutation logic.
-    It manages the mapping between Real IPs and Virtual (Mutable) IPs.
+    Moving Target Defense Engine.
+    Handles the mathematical generation and mapping of Virtual IPs and Virtual Ports.
+    Does not interact with Ryu or OpenFlow directly.
     """
     def __init__(self):
-        # List of physical/static IP addresses in the network
         self.real_hosts = config.REAL_HOSTS
-        # Forward mapping: Real IP -> Virtual IP
-        self.real_to_virtual = {}
-        # Reverse mapping: Virtual IP -> Real IP
-        self.virtual_to_real = {}
+        
+        # IP Mappings
+        self.real_to_virtual_ip = {}
+        self.virtual_to_real_ip = {}
+        
+        # Port Mappings: Format -> {('Real_IP', Real_Port): Virtual_Port}
+        self.real_to_virtual_port = {}
+        self.virtual_to_real_port = {}
 
-    def shuffle_ips(self):
-        """
-        Generates a new set of unique Virtual IPs for each real host.
-        Returns the new mapping dictionary.
-        """
-        new_real_to_virt = {}
+    def shuffle_all(self):
+        """ Triggers both IP and Port shuffling algorithms. """
+        self._shuffle_ips()
+        self._shuffle_ports()
+        return self.real_to_virtual_ip, self.real_to_virtual_port
+
+    def _shuffle_ips(self):
+        """ Generates unique Virtual IPs for each real host. """
+        new_r2v = {}
         used_ips = set()
 
         for real_ip in self.real_hosts:
             while True:
-                # Construct a new Virtual IP using the subnet and a random host part
                 new_v_ip = config.VIRTUAL_IP_SUBNET + str(random.randint(*config.VIRTUAL_IP_RANGE))
-                
-                # Ensure the generated Virtual IP is unique within this shuffle cycle
                 if new_v_ip not in used_ips:
                     used_ips.add(new_v_ip)
-                    new_real_to_virt[real_ip] = new_v_ip
+                    new_r2v[real_ip] = new_v_ip
                     break
         
-        # Update the internal state with the new mappings
-        self.real_to_virtual = new_real_to_virt        
-        self.virtual_to_real = {v: k for k, v in self.real_to_virtual.items()}
-        
-        return self.real_to_virtual
+        self.real_to_virtual_ip = new_r2v        
+        self.virtual_to_real_ip = {v: k for k, v in self.real_to_virtual_ip.items()}
 
+    def _shuffle_ports(self):
+        """ Generates unique Virtual Ports for protected services. """
+        new_r2v = {}
+        new_v2r = {}
+        used_ports = set()
+
+        for real_ip, real_port in config.PROTECTED_SERVICES.items():
+            while True:
+                virt_port = random.randint(*config.PORT_RANGE)
+                if virt_port not in used_ports:
+                    used_ports.add(virt_port)
+                    # Mapping logic
+                    new_r2v[(real_ip, real_port)] = virt_port
+                    new_v2r[(real_ip, virt_port)] = real_port
+                    break
+        
+        self.real_to_virtual_port = new_r2v
+        self.virtual_to_real_port = new_v2r
+
+    # --- IP GETTERS ---
     def get_real_ip(self, virtual_ip):
-        """ Returns the Real IP associated with a Virtual IP (Inbound NAT) """
-        return self.virtual_to_real.get(virtual_ip)
+        return self.virtual_to_real_ip.get(virtual_ip)
 
     def get_virtual_ip(self, real_ip):
-        """ Returns the Virtual IP associated with a Real IP (Outbound NAT/Masking) """
-        return self.real_to_virtual.get(real_ip)
+        return self.real_to_virtual_ip.get(real_ip)
     
     def is_virtual_ip(self, ip):
-        """ Checks if the given IP is currently a registered Virtual IP """
-        return ip in self.virtual_to_real
+        return ip in self.virtual_to_real_ip
         
     def is_real_ip(self, ip):
-        """ Checks if the given IP is a registered Real IP of an internal host """
-        return ip in self.real_to_virtual
+        return ip in self.real_to_virtual_ip
+
+    # --- PORT GETTERS ---
+    def get_real_port(self, real_ip, virtual_port):
+        """ Returns the real port given the real destination IP and the virtual port. """
+        return self.virtual_to_real_port.get((real_ip, virtual_port))
+
+    def get_virtual_port(self, real_ip, real_port):
+        """ Returns the virtual masked port given the real source IP and real port. """
+        return self.real_to_virtual_port.get((real_ip, real_port))

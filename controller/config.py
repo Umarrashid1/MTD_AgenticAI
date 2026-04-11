@@ -1,13 +1,33 @@
 # config.py
 
-# Rete e Host
+# ==========================================
+# NETWORK CONFIGURATION
+# ==========================================
+# List of real, physical IP addresses in the network
 REAL_HOSTS = ['10.0.0.1', '10.0.0.2', '10.0.0.3']
+
+# Subnet used to generate fake Virtual IPs
 VIRTUAL_IP_SUBNET = "10.0.0."
 VIRTUAL_IP_RANGE = (100, 200)
 
-# Timer di Mutazione (Jitter in secondi)
+# ==========================================
+# PORT SHUFFLING CONFIGURATION
+# ==========================================
+# Range for generating fake Virtual Ports
+PORT_RANGE = (50000, 60000)
+
+# Dictionary defining which real host has which real service port
+# Example: Host 10.0.0.2 runs a Web Server on port 80
+PROTECTED_SERVICES = {
+    '10.0.0.2': 80
+}
+
+# ==========================================
+# TIMING & HARDWARE CONFIGURATION
+# ==========================================
+# Jitter interval for MTD Shuffling (in seconds)
 SHUFFLE_MIN_TIME = 20
 SHUFFLE_MAX_TIME = 45
 
-# Impostazioni Switch
-HARD_TIMEOUT = 20  # o idle_timeout se preferisci
+# Idle timeout for Hardware Offloading in the Switch TCAM
+HARDWARE_IDLE_TIMEOUT = 10
