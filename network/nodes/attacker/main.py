@@ -1,8 +1,13 @@
 import os
 import sys
 import asyncio
-from agents import Agent, Runner
 
+# Correct production import path for the pip package
+try:
+    from cai.sdk.agents import Agent, Runner
+except ImportError:
+    print("[-] Error: Could not import CAI components. Ensure 'cai-framework' is installed.")
+    sys.exit(1)
 
 # 1. Force the LiteLLM/Ollama Routing Bridge
 os.environ["OPENAI_API_BASE"] = "http://172.17.0.1:11434/v1"
