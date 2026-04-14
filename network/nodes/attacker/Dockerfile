@@ -37,4 +37,4 @@ ENV OPENAI_API_BASE="http://172.17.0.1:11434"
 # variable to route traffic, even when talking to Ollama)
 
 # Containernet requires the container to stay alive.
-CMD ["/bin/bash"]
+CMD ["tail", "-f", "/dev/null"]
