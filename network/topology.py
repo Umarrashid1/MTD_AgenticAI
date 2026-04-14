@@ -52,7 +52,6 @@ def create_topology():
     decoy.cmd('service apache2 start &')
 
     info('*** Running CLI\n')
-    info('*** NOTE: Pings will fail until your Ryu controller installs routing flows! ***\n')
     CLI(net)
 
     info('*** Stopping network\n')

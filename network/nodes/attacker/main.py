@@ -1,13 +1,20 @@
 import os
 import sys
 import asyncio
-from agents import Agent, Runner
 
+# Correct production import path for the pip package
 
 # 1. Force the LiteLLM/Ollama Routing Bridge
 os.environ["OPENAI_API_BASE"] = "http://172.17.0.1:11434/v1"
+os.environ["OLLAMA_API_BASE"] = "http://172.17.0.1:11434"
 os.environ["OPENAI_API_KEY"] = "sk-dummy-key-not-used"
 os.environ["CAI_MODEL"] = "ollama/DeepHat"
+
+try:
+    from cai.sdk.agents import Agent, Runner
+except ImportError:
+    print("[-] Error: Could not import CAI components. Ensure 'cai-framework' is installed.")
+    sys.exit(1)
 
 
 async def main():
@@ -17,6 +24,7 @@ async def main():
     # 2. Define the Agent strictly using its built-in OS interaction tools
     agent = Agent(
         name="DeepHat_RedTeam",
+        model=os.environ["CAI_MODEL"], # <-- Added the model parameter!
         instructions="""You are an autonomous penetration testing agent situated in an internal network subnet.
         Your objective is to perform reconnaissance on the 10.0.0.0/24 range.
         There is a decoy web server and a vulnerable target server on this subnet.
