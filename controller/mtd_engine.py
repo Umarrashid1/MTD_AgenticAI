@@ -18,12 +18,19 @@ class MTDEngine(object):
         # Port Mappings: Format -> {('Real_IP', Real_Port): Virtual_Port}
         self.real_to_virtual_port = {}
         self.virtual_to_real_port = {}
+        
+        # MAC Mappings
+        self.real_to_virtual_mac = {}
+        self.virtual_to_real_mac = {}
+
 
     def shuffle_all(self):
         """ Triggers both IP and Port shuffling algorithms. """
         self._shuffle_ips()
         self._shuffle_ports()
-        return self.real_to_virtual_ip, self.real_to_virtual_port
+        self._shuffle_macs()
+
+        return self.real_to_virtual_ip, self.real_to_virtual_port, self.real_to_virtual_mac
 
     def _shuffle_ips(self):
         """ Generates unique Virtual IPs for each real host. """
@@ -60,6 +67,23 @@ class MTDEngine(object):
         self.real_to_virtual_port = new_r2v
         self.virtual_to_real_port = new_v2r
 
+    def _shuffle_macs(self):
+        """ Generates a random virtual MAC for each host. """
+        new_r2v = {}
+        for real_ip in self.real_hosts:
+            # Generates 3 casual byte to coplete the MAC
+            suffix = ":%02x:%02x:%02x" % (
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255)
+            )
+            new_r2v[real_ip] = config.VIRTUAL_MAC_PREFIX + suffix
+        
+        self.real_to_virtual_mac = new_r2v
+        self.virtual_to_real_mac = {v: k for k, v in self.real_to_virtual_mac.items()}
+        
+        
+
     # --- IP GETTERS ---
     def get_real_ip(self, virtual_ip):
         return self.virtual_to_real_ip.get(virtual_ip)
@@ -81,3 +105,10 @@ class MTDEngine(object):
     def get_virtual_port(self, real_ip, real_port):
         """ Returns the virtual masked port given the real source IP and real port. """
         return self.real_to_virtual_port.get((real_ip, real_port))
+    
+    # --- MAC GETTERS ---
+    def get_virtual_mac(self, real_ip):
+        return self.real_to_virtual_mac.get(real_ip)
+
+    def get_real_ip_from_mac(self, virtual_mac):
+        return self.virtual_to_real_mac.get(virtual_mac)

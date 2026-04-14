@@ -29,31 +29,38 @@ class ControllerMTD(app_manager.RyuApp):
             interval = random.randint(config.SHUFFLE_MIN_TIME, config.SHUFFLE_MAX_TIME)
             hub.sleep(interval)
             
-            # 1. Proactive Data Plane Cleanup
             if hasattr(self, 'target_datapath'):
                 self._clear_mtd_flows(self.target_datapath)
                 hub.sleep(1) 
 
-            # 2. Mathematical Shuffling
-            ip_map, port_map = self.mtd_engine.shuffle_all()
+            # FIX: Now we unpack THREE values: ip_map, port_map, AND mac_map
+            ip_map, port_map, mac_map = self.mtd_engine.shuffle_all()
             
             self.logger.info("\n========== MTD SHUFFLE EXECUTED ==========")
             for r, v in ip_map.items():
                 self.logger.info("[IP] Real %s -> Virtual %s", r, v)
+            
+            # Add logging for the new MAC shuffling
+            for r_ip, v_mac in mac_map.items():
+                self.logger.info("[MAC] Real %s -> Virtual MAC %s", r_ip, v_mac)
+                
             for (r_ip, r_port), v_port in port_map.items():
                 self.logger.info("[PORT] %s:%s -> Port %s", r_ip, r_port, v_port)
             self.logger.info("==========================================\n")
                 
-            # 3. Network State Update
             self._send_garps_for_all()
 
     def _send_garps_for_all(self):
-        """ Broadcast GARPs to update host ARP caches with new Virtual IPs. """
+        """ Broadcast GARPs to update host ARP caches with new Virtual IPs and MACs. """
         if not hasattr(self, 'target_datapath'): return
+        
         for r_ip, v_ip in self.mtd_engine.real_to_virtual_ip.items():
-            mac = self.ip_to_mac.get(r_ip)
-            if mac:
-                self._send_gratuitous_arp(self.target_datapath, v_ip, mac)
+            # Get the newly generated Virtual MAC from the engine
+            v_mac = self.mtd_engine.get_virtual_mac(r_ip)
+            
+            if v_mac:
+                # IMPORTANT: Pass the Virtual MAC, not the real one!
+                self._send_gratuitous_arp(self.target_datapath, v_ip, v_mac)
                 hub.sleep(0.2)
 
     # =========================================================================
@@ -71,7 +78,10 @@ class ControllerMTD(app_manager.RyuApp):
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
-        """ Core Packet processing engine (ARP Proxy & NAT Translation). """
+        """ 
+        Full-Stack MTD Processing Engine. 
+        Handles ARP Proxying and NAT translation for MAC, IP, and Transport Ports.
+        """
         msg = ev.msg
         datapath = msg.datapath
         ofproto, parser = datapath.ofproto, datapath.ofproto_parser
@@ -81,7 +91,7 @@ class ControllerMTD(app_manager.RyuApp):
         eth = pkt.get_protocol(ethernet.ethernet)
         if not eth: return
 
-        # --- 1. ARP PROXY MANAGEMENT ---
+        # --- 1. ARP PROXY MANAGEMENT (Identity Protection) ---
         pkt_arp = pkt.get_protocol(arp.arp)
         if pkt_arp:
             self.ip_to_mac[pkt_arp.src_ip] = eth.src
@@ -89,61 +99,73 @@ class ControllerMTD(app_manager.RyuApp):
                 self._handle_arp(datapath, in_port, eth, pkt_arp)
                 return
 
-        # --- 2. IP & PORT NAT MANAGEMENT ---
+        # --- 2. FULL-STACK NAT MANAGEMENT (L2, L3, L4) ---
         pkt_ipv4 = pkt.get_protocol(ipv4.ipv4)
         pkt_tcp = pkt.get_protocol(tcp.tcp)
         pkt_udp = pkt.get_protocol(udp.udp)
         
         actions = []
         
+        # Variabile per tracciare il vero MAC di destinazione per lo switch
+        target_mac_for_forwarding = eth.dst 
+        
         if pkt_ipv4:
             self.ip_to_mac[pkt_ipv4.src] = eth.src
             
-            # --- INBOUND NAT (Client to Server) ---
+            # --- INBOUND NAT: Virtual Client -> Real Server ---
             if self.mtd_engine.is_virtual_ip(pkt_ipv4.dst):
-                real_dst = self.mtd_engine.get_real_ip(pkt_ipv4.dst)
-                actions.append(parser.OFPActionSetField(ipv4_dst=real_dst))
+                real_dst_ip = self.mtd_engine.get_real_ip(pkt_ipv4.dst)
+                real_dst_mac = self.ip_to_mac.get(real_dst_ip)
                 
-                # Port Translation (Inbound)
+                actions.append(parser.OFPActionSetField(ipv4_dst=real_dst_ip))
+                if real_dst_mac:
+                    actions.append(parser.OFPActionSetField(eth_dst=real_dst_mac))
+                    # FIX: Aggiorniamo il target per il forwarding L2
+                    target_mac_for_forwarding = real_dst_mac 
+                
                 if pkt_tcp:
-                    real_port = self.mtd_engine.get_real_port(real_dst, pkt_tcp.dst_port)
+                    real_port = self.mtd_engine.get_real_port(real_dst_ip, pkt_tcp.dst_port)
                     if real_port:
                         actions.append(parser.OFPActionSetField(tcp_dst=real_port))
-                        self.logger.info("MTD [IN-TCP]: Port %s -> %s", pkt_tcp.dst_port, real_port)
                 elif pkt_udp:
-                    real_port = self.mtd_engine.get_real_port(real_dst, pkt_udp.dst_port)
+                    real_port = self.mtd_engine.get_real_port(real_dst_ip, pkt_udp.dst_port)
                     if real_port:
                         actions.append(parser.OFPActionSetField(udp_dst=real_port))
-                        
-                self.logger.info("MTD [IN-IP]: %s -> %s", pkt_ipv4.dst, real_dst)
                 
-            # --- OUTBOUND NAT (Server to Client) ---
-            elif self.mtd_engine.is_real_ip(pkt_ipv4.src):
-                virt_src = self.mtd_engine.get_virtual_ip(pkt_ipv4.src)
-                actions.append(parser.OFPActionSetField(ipv4_src=virt_src))
+                self.logger.info("MTD [IN]: %s -> %s (MAC: %s)", pkt_ipv4.dst, real_dst_ip, real_dst_mac)
                 
-                # Port Translation (Outbound)
+            # --- OUTBOUND NAT: Real Server -> Virtual Source (Masking) ---
+            # FIX: Cambiato da 'elif' a 'if'. I due NAT devono avvenire SIMULTANEAMENTE!
+            if self.mtd_engine.is_real_ip(pkt_ipv4.src):
+                virt_src_ip = self.mtd_engine.get_virtual_ip(pkt_ipv4.src)
+                virt_src_mac = self.mtd_engine.get_virtual_mac(pkt_ipv4.src)
+                
+                actions.append(parser.OFPActionSetField(ipv4_src=virt_src_ip))
+                if virt_src_mac:
+                    actions.append(parser.OFPActionSetField(eth_src=virt_src_mac))
+                
                 if pkt_tcp:
                     virt_port = self.mtd_engine.get_virtual_port(pkt_ipv4.src, pkt_tcp.src_port)
                     if virt_port:
                         actions.append(parser.OFPActionSetField(tcp_src=virt_port))
-                        self.logger.info("MTD [OUT-TCP]: Port %s -> %s", pkt_tcp.src_port, virt_port)
                 elif pkt_udp:
                     virt_port = self.mtd_engine.get_virtual_port(pkt_ipv4.src, pkt_udp.src_port)
                     if virt_port:
                         actions.append(parser.OFPActionSetField(udp_src=virt_port))
                         
-                self.logger.info("MTD [OUT-IP]: %s -> %s", pkt_ipv4.src, virt_src)
+                self.logger.info("MTD [OUT]: %s -> %s (V-MAC: %s)", pkt_ipv4.src, virt_src_ip, virt_src_mac)
 
-        # --- 3. L2 FORWARDING ---
+        # --- 3. STANDARD L2 FORWARDING ---
         self.mac_to_port.setdefault(datapath.id, {})
+        # Impariamo sempre la porta dalla sorgente reale fisica
         self.mac_to_port[datapath.id][eth.src] = in_port
-        out_port = self.mac_to_port[datapath.id].get(eth.dst, ofproto.OFPP_FLOOD)
+        
+        # FIX: Usiamo il target_mac corretto per l'inoltro, evitando il FLOOD perenne
+        out_port = self.mac_to_port[datapath.id].get(target_mac_for_forwarding, ofproto.OFPP_FLOOD)
         actions.append(parser.OFPActionOutput(out_port))
 
-        # --- 4. HARDWARE OFFLOADING OPTIMIZATION ---
-        if pkt_ipv4:
-            # We must explicitly specify IP protocol if we match transport ports
+        # --- 4. HARDWARE OFFLOADING (TCAM Optimization) ---
+        if pkt_ipv4 and out_port != ofproto.OFPP_FLOOD:
             if pkt_tcp:
                 match = parser.OFPMatch(in_port=in_port, eth_type=0x0800, ip_proto=6,
                                         ipv4_src=pkt_ipv4.src, ipv4_dst=pkt_ipv4.dst,
@@ -153,19 +175,16 @@ class ControllerMTD(app_manager.RyuApp):
                                         ipv4_src=pkt_ipv4.src, ipv4_dst=pkt_ipv4.dst,
                                         udp_src=pkt_udp.src_port, udp_dst=pkt_udp.dst_port)
             else:
-                # ICMP (Ping) or other non-TCP/UDP traffic
                 match = parser.OFPMatch(in_port=in_port, eth_type=0x0800,
                                         ipv4_src=pkt_ipv4.src, ipv4_dst=pkt_ipv4.dst)
             
             self.add_flow(datapath, 1, match, actions, idle_timeout=config.HARDWARE_IDLE_TIMEOUT)
-            self.logger.info("+++ HW OFFLOAD INSTALLED +++")
+            self.logger.info("+++ HW OFFLOAD: Multi-level NAT rule installed +++")
 
-        # Send current packet out
         out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
                                   in_port=in_port, actions=actions, 
                                   data=msg.data if msg.buffer_id == ofproto.OFP_NO_BUFFER else None)
         datapath.send_msg(out)
-
     # =========================================================================
     # OPENFLOW MESSAGING HELPERS
     # =========================================================================
@@ -184,27 +203,95 @@ class ControllerMTD(app_manager.RyuApp):
         self.add_flow(datapath, 0, parser.OFPMatch(), actions)
 
     def _handle_arp(self, datapath, in_port, eth, pkt_arp):
+        """
+        ARP Proxy Handler with MAC Shuffling.
+        Intercepts ARP Requests for Virtual IPs and replies with Virtual MACs.
+        """
+        # 1. Resolve the Real IP associated with the requested Virtual IP
         real_ip = self.mtd_engine.get_real_ip(pkt_arp.dst_ip)
-        target_mac = self.ip_to_mac.get(real_ip)
-        if not target_mac: return
-        pkt = packet.Packet()
-        pkt.add_protocol(ethernet.ethernet(ethertype=eth.ethertype, dst=eth.src, src=target_mac))
-        pkt.add_protocol(arp.arp(opcode=arp.ARP_REPLY, src_mac=target_mac, src_ip=pkt_arp.dst_ip, 
-                                 dst_mac=eth.src, dst_ip=pkt_arp.src_ip))
-        pkt.serialize()
-        actions = [datapath.ofproto_parser.OFPActionOutput(in_port)]
-        out = datapath.ofproto_parser.OFPPacketOut(datapath=datapath, buffer_id=0xffffffff, 
-                                                   in_port=datapath.ofproto.OFPP_CONTROLLER, actions=actions, data=pkt.data)
-        datapath.send_msg(out)
+        
+        # 2. Retrieve the Virtual MAC assigned to this host in the current shuffle cycle
+        # This masks the real hardware identity (NIC vendor, etc.)
+        virt_mac = self.mtd_engine.get_virtual_mac(real_ip)
+        
+        if not virt_mac:
+            self.logger.warning("ARP Proxy: No Virtual MAC found for Real IP %s", real_ip)
+            return
 
-    def _send_gratuitous_arp(self, datapath, ip_virtuale, mac_reale):
-        parser, ofproto = datapath.ofproto_parser, datapath.ofproto
+        # 3. Construct the ARP Reply packet
         pkt = packet.Packet()
-        pkt.add_protocol(ethernet.ethernet(ethertype=0x0806, dst='ff:ff:ff:ff:ff:ff', src=mac_reale))
-        pkt.add_protocol(arp.arp(opcode=arp.ARP_REPLY, src_mac=mac_reale, src_ip=ip_virtuale, 
-                                 dst_mac='ff:ff:ff:ff:ff:ff', dst_ip=ip_virtuale))
+        
+        # Ethernet Header:
+        # Destination: The requester's real MAC
+        # Source: The fake Virtual MAC assigned by the MTD Engine
+        pkt.add_protocol(ethernet.ethernet(
+            ethertype=eth.ethertype, 
+            dst=eth.src, 
+            src=virt_mac))
+        
+        # ARP Header:
+        # Opcode 2 = ARP_REPLY
+        # We tell the requester that the Virtual IP sits at the Virtual MAC
+        pkt.add_protocol(arp.arp(
+            opcode=arp.ARP_REPLY, 
+            src_mac=virt_mac,      # Masked Source MAC
+            src_ip=pkt_arp.dst_ip, # Requested Virtual IP
+            dst_mac=eth.src,       # Requester's Real MAC
+            dst_ip=pkt_arp.src_ip  # Requester's Real IP
+        ))
+        
         pkt.serialize()
+
+        # 4. Send the forged packet back to the requester's port
+        actions = [datapath.ofproto_parser.OFPActionOutput(in_port)]
+        out = datapath.ofproto_parser.OFPPacketOut(
+            datapath=datapath, 
+            buffer_id=0xffffffff, 
+            in_port=datapath.ofproto.OFPP_CONTROLLER, 
+            actions=actions, 
+            data=pkt.data)
+        
+        datapath.send_msg(out)
+        self.logger.info("MTD [ARP-REPLY]: Mapping %s to Virtual MAC %s", pkt_arp.dst_ip, virt_mac)
+
+    def _send_gratuitous_arp(self, datapath, ip_virtuale, mac_virtuale):
+        """
+        Broadcasts a Gratuitous ARP (GARP) reply to the entire network.
+        Forces all hosts to update their ARP cache with the new Virtual IP 
+        and the new Virtual MAC address.
+        """
+        parser, ofproto = datapath.ofproto_parser, datapath.ofproto
+        
+        pkt = packet.Packet()
+        
+        # Ethernet Header:
+        # Destination: ff:ff:ff:ff:ff:ff (Broadcast to everyone)
+        # Source: The new Virtual MAC assigned to this host
+        pkt.add_protocol(ethernet.ethernet(
+            ethertype=0x0806, 
+            dst='ff:ff:ff:ff:ff:ff', 
+            src=mac_virtuale))
+        
+        # ARP Header:
+        # A Gratuitous ARP is an ARP Reply (opcode 2) sent without being requested.
+        # Both source and destination IPs are set to the new Virtual IP.
+        pkt.add_protocol(arp.arp(
+            opcode=arp.ARP_REPLY, 
+            src_mac=mac_virtuale,  # New Virtual MAC
+            src_ip=ip_virtuale,   # New Virtual IP
+            dst_mac='ff:ff:ff:ff:ff:ff', 
+            dst_ip=ip_virtuale))
+            
+        pkt.serialize()
+        
+        # Flood the packet to all ports so every host receives the update
         actions = [parser.OFPActionOutput(ofproto.OFPP_FLOOD)]
-        out = parser.OFPPacketOut(datapath=datapath, buffer_id=ofproto.OFP_NO_BUFFER, 
-                                  in_port=ofproto.OFPP_CONTROLLER, actions=actions, data=pkt.data)
+        out = parser.OFPPacketOut(
+        datapath=datapath, 
+        buffer_id=ofproto.OFP_NO_BUFFER, 
+        in_port=ofproto.OFPP_CONTROLLER, 
+        actions=actions, 
+        data=pkt.data
+        )
+        
         datapath.send_msg(out)

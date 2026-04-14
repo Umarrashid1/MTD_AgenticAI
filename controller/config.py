@@ -10,6 +10,9 @@ REAL_HOSTS = ['10.0.0.1', '10.0.0.2', '10.0.0.3']
 VIRTUAL_IP_SUBNET = "10.0.0."
 VIRTUAL_IP_RANGE = (100, 200)
 
+# Virtual MAC prefix (00:00:00: followed by casual numbers)
+VIRTUAL_MAC_PREFIX = "00:00:00"
+
 # ==========================================
 # PORT SHUFFLING CONFIGURATION
 # ==========================================
