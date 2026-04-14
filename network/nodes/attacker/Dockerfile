@@ -35,6 +35,6 @@ ENV CAI_MODEL="ollama/DeepHat"
 ENV OPENAI_API_BASE="http://172.17.0.1:11434"
 # (LiteLLM, which CAI uses under the hood, looks for the OPENAI_API_BASE
 # variable to route traffic, even when talking to Ollama)
-
+COPY main.py /app/main.py
 # Containernet requires the container to stay alive.
 CMD ["tail", "-f", "/dev/null"]
