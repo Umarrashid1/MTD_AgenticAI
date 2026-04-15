@@ -1,47 +1,36 @@
 import os
-import sys
 import asyncio
+# Import the specific tools from the directory you found
+from cai.tools.reconnaissance import NmapTool
 from agents import Agent, Runner
 
 
-# 1. Force the LiteLLM/Ollama Routing Bridge
-os.environ["OPENAI_API_BASE"] = "http://172.17.0.1:11434/v1"
-os.environ["OPENAI_API_KEY"] = "sk-dummy-key-not-used"
-os.environ["CAI_MODEL"] = "ollama/DeepHat"
-
+# Disable the tracing
+os.environ["OTEL_SDK_DISABLED"] = "true"
 
 async def main():
-    print("[*] Booting CAI Autonomous Framework...")
-    print(f"[*] Upstream AI: {os.environ.get('CAI_MODEL')}")
+    # 1. Instantiate the actual tool
+    # This allows the AI to execute 'nmap' on your host
+    network_scanner = NmapTool()
 
-    # 2. Define the Agent strictly using its built-in OS interaction tools
+    # 2. Add the tool to the Agent
     agent = Agent(
-        name="DeepHat_RedTeam",
-        instructions="""You are an autonomous penetration testing agent situated in an internal network subnet.
-        Your objective is to perform reconnaissance on the 10.0.0.0/24 range.
-        There is a decoy web server and a vulnerable target server on this subnet.
-
-        Rules of Engagement:
-        1. You must use your built-in linux terminal tools to run native Kali commands (e.g., nmap, curl, nc).
-        2. Identify the web servers and determine which one is running a vulnerable service.
-        3. Attempt to exploit the vulnerable service.
-        4. Explain your reasoning before executing any command.
-        """
+        name="DeepHat_Scanner",
+        tools=[network_scanner], # THIS IS CRITICAL
+        instructions="""You are a network mapping agent.
+        Use your nmap tool to discover hosts on 10.0.0.0/24.
+        Output a clean list of active IPs and open ports.
+        Do not explain how nmap works, just execute it."""
     )
 
-    mission_trigger = "Begin your reconnaissance. Find the target and exploit it."
-    print("\n[*] Initializing Agentic Loop...")
+    mission_trigger = "Scan the 10.0.0.0/24 subnet and map the services."
 
-    # 3. Run the Agent Asynchronously
     try:
-        # The Runner handles the back-and-forth loop between DeepHat's thoughts and Kali's terminal
+        # The Runner now sees the 'tools' and allows the LLM to call them
         result = await Runner.run(agent, input=mission_trigger)
-        print("\n[*] Mission Complete. Final Output:")
-        print(result.final_output)
+        print(f"\n[*] Scan Result:\n{result.final_output}")
     except Exception as e:
-        print(f"\n[-] Agent loop terminated unexpectedly: {e}")
-
+        print(f"\n[-] Failed: {e}")
 
 if __name__ == "__main__":
-    # Execute the async loop
     asyncio.run(main())
