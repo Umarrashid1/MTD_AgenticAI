@@ -16,7 +16,7 @@ async def main():
     # 2. Add the tool to the Agent
     agent = Agent(
         name="DeepHat_Scanner",
-        tools=[network_scanner], # THIS IS CRITICAL
+        tools=[network_scanner],
         instructions="""You are a network mapping agent.
         Use your nmap tool to discover hosts on 10.0.0.0/24.
         Output a clean list of active IPs and open ports.
