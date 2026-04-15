@@ -1,36 +1,46 @@
 import os
 import asyncio
-# Import the specific tools from the directory you found
-from cai.tools.reconnaissance import NmapTool
-from agents import Agent, Runner
+from openai import AsyncOpenAI
+# Correct imports based on the CAI SDK structure
+from cai.sdk.agents import Agent, Runner, OpenAIChatCompletionsModel
+from cai.tools.reconnaissance.generic_linux_command import generic_linux_command
 
+# Configuration for Ollama
+os.environ["OPENAI_API_BASE"] = "http://172.17.0.1:11434/v1"
+os.environ["OPENAI_API_KEY"] = "sk-dummy-key-not-used"
+os.environ["CAI_MODEL"] = "ollama/DeepHat/DeepHat-V1-7B:latest"
 
-# Disable the tracing
-os.environ["OTEL_SDK_DISABLED"] = "true"
 
 async def main():
-    # 1. Instantiate the actual tool
-    # This allows the AI to execute 'nmap' on your host
-    network_scanner = NmapTool()
-
-    # 2. Add the tool to the Agent
-    agent = Agent(
-        name="DeepHat_Scanner",
-        tools=[network_scanner],
-        instructions="""You are a network mapping agent.
-        Use your nmap tool to discover hosts on 10.0.0.0/24.
-        Output a clean list of active IPs and open ports.
-        Do not explain how nmap works, just execute it."""
+    # Setup the local client pointing to Ollama
+    client = AsyncOpenAI(
+        base_url=os.environ["OPENAI_API_BASE"],
+        api_key=os.environ["OPENAI_API_KEY"]
     )
 
-    mission_trigger = "Scan the 10.0.0.0/24 subnet and map the services."
+    agent = Agent(
+        name="DeepHat_Network_Mapper",
+        instructions="""You are a penetration testing agent. 
+        Your goal is to map the 10.0.0.0/24 network.
+        Use 'generic_linux_command' to run nmap and ip commands.
+        Find live hosts and open ports, then summarize the network topology.""",
+        tools=[generic_linux_command],
+        model=OpenAIChatCompletionsModel(
+            model=os.environ["CAI_MODEL"],
+            openai_client=client,
+        )
+    )
 
+    mission_trigger = "Scan the subnet 10.0.0.0/24 and tell me what is alive."
+
+    print("[*] Starting Agentic Reconnaissance...")
     try:
-        # The Runner now sees the 'tools' and allows the LLM to call them
         result = await Runner.run(agent, input=mission_trigger)
-        print(f"\n[*] Scan Result:\n{result.final_output}")
+        print("\n[*] Mission Complete. Final Output:")
+        print(result.final_output)
     except Exception as e:
-        print(f"\n[-] Failed: {e}")
+        print(f"\n[-] Error during execution: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
