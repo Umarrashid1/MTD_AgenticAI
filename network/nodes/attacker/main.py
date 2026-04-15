@@ -2,14 +2,6 @@ import os
 import sys
 import asyncio
 
-# Correct production import path for the pip package
-
-# 1. Force the LiteLLM/Ollama Routing Bridge
-os.environ["OPENAI_API_BASE"] = "http://172.17.0.1:11434/v1"
-os.environ["OLLAMA_API_BASE"] = "http://172.17.0.1:11434"
-os.environ["OPENAI_API_KEY"] = "sk-dummy-key-not-used"
-os.environ["CAI_MODEL"] = "ollama/DeepHat"
-
 try:
     from cai.sdk.agents import Agent, Runner
 except ImportError:
