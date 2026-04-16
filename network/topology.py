@@ -26,9 +26,9 @@ def create_topology():
     target = net.addDocker('target', ip='10.0.0.251/24', mac='00:00:00:00:00:FF', dimage="ubuntu:trusty")
 
     info('*** Adding switches (Core & Edge)\n')
-    s1 = net.addSwitch('s1', protocols='OpenFlow15') # Core Switch
-    s2 = net.addSwitch('s2', protocols='OpenFlow15') # External Edge
-    s3 = net.addSwitch('s3', protocols='OpenFlow15') # Internal Edge
+    s1 = net.addSwitch('s1', protocols='OpenFlow13') # Core Switch
+    s2 = net.addSwitch('s2', protocols='OpenFlow13') # External Edge
+    s3 = net.addSwitch('s3', protocols='OpenFlow13') # Internal Edge
 
     info('*** Creating links\n')
     # Connect Edges to Core
