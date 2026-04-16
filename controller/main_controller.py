@@ -10,7 +10,7 @@ import config
 from mtd_engine import MTDEngine
 
 class ControllerMTD(app_manager.RyuApp):
-    OFP_VERSIONS = [0x04]
+    OFP_VERSIONS = [0x04, 0x06]
 
     def __init__(self, *args, **kwargs):
         super(ControllerMTD, self).__init__(*args, **kwargs)
