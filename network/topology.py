@@ -19,11 +19,11 @@ def create_topology():
 
     info('*** Adding Docker containers (Internal Zone)\n')
     # Legitimate Client
-    c1 = net.addDocker('c1', ip='10.0.0.001/24', mac='00:00:00:00:00:AA', dimage="ubuntu:trusty")
+    c1 = net.addDocker('c1', ip='10.0.0.1/24', mac='00:00:00:00:00:AA', dimage="ubuntu:trusty")
     # Decoy?
-    decoy = net.addDocker('decoy', ip='10.0.0.002/24', mac='00:00:00:00:00:DD', dimage="ubuntu:trusty")
+    decoy = net.addDocker('decoy', ip='10.0.0.2/24', mac='00:00:00:00:00:DD', dimage="ubuntu:trusty")
     # Vulnerable Target
-    target = net.addDocker('target', ip='10.0.0.003/24', mac='00:00:00:00:00:FF', dimage="ubuntu:trusty")
+    target = net.addDocker('target', ip='10.0.0.3/24', mac='00:00:00:00:00:FF', dimage="ubuntu:trusty")
 
     info('*** Adding switches (Core & Edge)\n')
     s1 = net.addSwitch('s1', protocols='OpenFlow13') # Core Switch
