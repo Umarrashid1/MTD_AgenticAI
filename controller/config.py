@@ -4,7 +4,11 @@
 # NETWORK CONFIGURATION
 # ==========================================
 # List of real, physical IP addresses in the network
-REAL_HOSTS = ['10.0.0.1', '10.0.0.2', '10.0.0.3']
+REAL_HOSTS = [
+    "10.0.0.100", # c1
+    "10.0.0.200", # decoy
+    "10.0.0.251"  # target
+]
 
 # Subnet used to generate fake Virtual IPs
 VIRTUAL_IP_SUBNET = "10.0.0."

@@ -16,6 +16,7 @@ class ControllerMTD(app_manager.RyuApp):
         super(ControllerMTD, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
         self.ip_to_mac = {}
+        self.datapaths = {}
         
         self.mtd_engine = MTDEngine()
         self.shuffling_thread = hub.spawn(self._shuffling_loop)
@@ -29,8 +30,9 @@ class ControllerMTD(app_manager.RyuApp):
             interval = random.randint(config.SHUFFLE_MIN_TIME, config.SHUFFLE_MAX_TIME)
             hub.sleep(interval)
             
-            if hasattr(self, 'target_datapath'):
-                self._clear_mtd_flows(self.target_datapath)
+            if self.datapaths:
+                for dp in self.datapaths.values():
+                    self._clear_mtd_flows(dp)
                 hub.sleep(1) 
 
             # FIX: Now we unpack THREE values: ip_map, port_map, AND mac_map
@@ -52,15 +54,16 @@ class ControllerMTD(app_manager.RyuApp):
 
     def _send_garps_for_all(self):
         """ Broadcast GARPs to update host ARP caches with new Virtual IPs and MACs. """
-        if not hasattr(self, 'target_datapath'): return
+        if not self.datapaths: return
         
-        for r_ip, v_ip in self.mtd_engine.real_to_virtual_ip.items():
-            # Get the newly generated Virtual MAC from the engine
-            v_mac = self.mtd_engine.get_virtual_mac(r_ip)
-            
-            if v_mac:
-                # IMPORTANT: Pass the Virtual MAC, not the real one!
-                self._send_gratuitous_arp(self.target_datapath, v_ip, v_mac)
+        for dp in self.datapaths.values():
+            for r_ip, v_ip in self.mtd_engine.real_to_virtual_ip.items():
+                # Get the newly generated Virtual MAC from the engine
+                v_mac = self.mtd_engine.get_virtual_mac(r_ip)
+                
+                if v_mac:
+                    # IMPORTANT: Pass the Virtual MAC, not the real one!
+                    self._send_gratuitous_arp(dp, v_ip, v_mac)
                 hub.sleep(0.2)
 
     # =========================================================================
@@ -69,12 +72,13 @@ class ControllerMTD(app_manager.RyuApp):
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
         """ Installs the fundamental Table-Miss flow entry. """
-        self.target_datapath = ev.msg.datapath
-        ofproto, parser = self.target_datapath.ofproto, self.target_datapath.ofproto_parser
+        datapath = ev.msg.datapath
+        self.datapaths[datapath.id] = datapath
+        ofproto, parser = datapath.ofproto, datapath.ofproto_parser
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
-        self.add_flow(self.target_datapath, 0, match, actions)
-        self.logger.info("--- MTD READY: Table-Miss Installed ---")
+        self.add_flow(datapath, 0, match, actions)
+        self.logger.info("--- MTD READY: Table-Miss Installed for Switch %s ---", datapath.id)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
@@ -106,7 +110,6 @@ class ControllerMTD(app_manager.RyuApp):
         
         actions = []
         
-        # Variabile per tracciare il vero MAC di destinazione per lo switch
         target_mac_for_forwarding = eth.dst 
         
         if pkt_ipv4:
@@ -120,7 +123,6 @@ class ControllerMTD(app_manager.RyuApp):
                 actions.append(parser.OFPActionSetField(ipv4_dst=real_dst_ip))
                 if real_dst_mac:
                     actions.append(parser.OFPActionSetField(eth_dst=real_dst_mac))
-                    # FIX: Aggiorniamo il target per il forwarding L2
                     target_mac_for_forwarding = real_dst_mac 
                 
                 if pkt_tcp:
@@ -135,7 +137,6 @@ class ControllerMTD(app_manager.RyuApp):
                 self.logger.info("MTD [IN]: %s -> %s (MAC: %s)", pkt_ipv4.dst, real_dst_ip, real_dst_mac)
                 
             # --- OUTBOUND NAT: Real Server -> Virtual Source (Masking) ---
-            # FIX: Cambiato da 'elif' a 'if'. I due NAT devono avvenire SIMULTANEAMENTE!
             if self.mtd_engine.is_real_ip(pkt_ipv4.src):
                 virt_src_ip = self.mtd_engine.get_virtual_ip(pkt_ipv4.src)
                 virt_src_mac = self.mtd_engine.get_virtual_mac(pkt_ipv4.src)
