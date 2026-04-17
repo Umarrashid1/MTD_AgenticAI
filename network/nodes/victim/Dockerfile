@@ -1,29 +1,34 @@
-# Use the official Juice Shop base
-FROM bkimminich/juice-shop
+# Stage 1: Get the Juice Shop files
+FROM bkimminich/juice-shop:latest AS source
 
-# Switch to root to install tools
-USER root
+# Stage 2: Build our functional victim container
+FROM node:18-bookworm-slim
 
-# Alpine uses 'apk' instead of 'apt-get'
-RUN apk update && apk add --no-cache \
+# Install your networking and security tools
+# We use apt-get here because bookworm-slim is Debian-based
+RUN apt-get update && apt-get install -y \
     python3 \
-    py3-pip \
+    python3-pip \
     git \
     net-tools \
     iproute2 \
-    iputils \
+    iputils-ping \
     curl \
     nmap \
-    netcat-openbsd \
-    bind-tools \
-    bash
+    netcat-traditional \
+    dnsutils \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set up the working directory (Juice Shop lives here by default)
+# Set the working directory
 WORKDIR /app
 
-# Expose the port Juice Shop runs on
+# Copy the application from the official image to this one
+COPY --from=source /app /app
+
+# Juice Shop needs to run as a specific user for some features,
+# but for a lab 'root' is fine, or you can create one.
 EXPOSE 3000
 
-# Start Juice Shop in the background AND tail dev null to keep it alive for Containernet
-# 'npm start' is the default start command for Juice Shop
+# Start Juice Shop and keep the container open for Containernet
 CMD npm start & tail -f /dev/null
