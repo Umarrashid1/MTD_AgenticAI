@@ -99,9 +99,14 @@ class ControllerMTD(app_manager.RyuApp):
         pkt_arp = pkt.get_protocol(arp.arp)
         if pkt_arp:
             self.ip_to_mac[pkt_arp.src_ip] = eth.src
-            if pkt_arp.opcode == arp.ARP_REQUEST and self.mtd_engine.is_virtual_ip(pkt_arp.dst_ip):
-                self._handle_arp(datapath, in_port, eth, pkt_arp)
-                return
+
+            if pkt_arp.opcode == arp.ARP_REQUEST:
+                if self.mtd_engine.is_real_ip(pkt_arp.dst_ip):
+                    self.logger.warning("[ARP SHIELD] DROP: Attempting ARP to Real IP %s", pkt_arp.dst_ip)
+                    return
+                elif self.mtd_engine.is_virtual_ip(pkt_arp.dst_ip):
+                    self._handle_arp(datapath, in_port, eth, pkt_arp)
+                    return
 
         # --- 2. FULL-STACK NAT MANAGEMENT (L2, L3, L4) ---
         pkt_ipv4 = pkt.get_protocol(ipv4.ipv4)
@@ -115,10 +120,6 @@ class ControllerMTD(app_manager.RyuApp):
         if pkt_ipv4:
             
             self.ip_to_mac[pkt_ipv4.src] = eth.src
-
-            if pkt_ipv4.dst in config.REAL_HOSTS:
-                self.logger.warning("[MTD SHIELD] DROP: trYING TO ACCESS REAL IP {} FROM {}".format(pkt_ipv4.dst, pkt_ipv4.src))
-                return #
             
             # --- INBOUND NAT: Virtual Client -> Real Server ---
             if self.mtd_engine.is_virtual_ip(pkt_ipv4.dst):
