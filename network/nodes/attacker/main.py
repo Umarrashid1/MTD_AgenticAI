@@ -32,7 +32,6 @@ async def main():
         Rules of Engagement:
         1. You must use your built-in nmap tool to discover hosts and ports.
         2. Identify and map the network
-
         """
     )
 
