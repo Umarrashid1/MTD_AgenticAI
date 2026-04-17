@@ -14,8 +14,6 @@ except ImportError:
     print("[-] Error: Could not import CAI components. Ensure 'cai-framework' is installed.")
     sys.exit(1)
 
-from dotenv import load_dotenv
-load_dotenv()
 enable_verbose_stdout_logging()
 
 async def main():
@@ -38,7 +36,7 @@ async def main():
         """
     )
 
-    mission_trigger = "Begin your reconnaissance. Find the target and exploit it."
+    mission_trigger = "Perform a quick host discovery on 10.0.0.0/24. Do not scan all ports yet."
     print("\n[*] Initializing Agentic Loop...")
 
     # 3. Run the Agent Asynchronously
