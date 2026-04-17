@@ -23,7 +23,7 @@ def create_topology():
         mac='00:00:00:00:00:11',
         dimage="attacker",
         volumes=[
-            f"{pwd}/nodes/attacker:/app:rw"
+            f"{pwd}/MTD_AgenticAI/network/nodes/attacker:/app:rw"
         ]
     )
     info('*** Adding Docker containers (Internal Zone)\n')

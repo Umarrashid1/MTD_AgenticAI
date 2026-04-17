@@ -33,8 +33,10 @@ RUN pip install --no-cache-dir cai-framework
 # Point CAI to the Ollama instance running on your Ubuntu Host!
 ENV CAI_MODEL="ollama/DeepHat"
 ENV OPENAI_API_BASE="http://172.17.0.1:11434"
+
 #Mounted for now
 #COPY main.py /app/main.py
 #COPY .env /app/.env
+
 # Containernet requires the container to stay alive.
 CMD ["tail", "-f", "/dev/null"]
