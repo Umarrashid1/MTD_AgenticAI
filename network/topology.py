@@ -40,7 +40,7 @@ def create_topology():
         'target',
         ip='10.0.0.3/24',
         mac='00:00:00:00:00:FF',
-        dimage="bkimminich/juice-shop"
+        dimage="victim"
     )
 
 
