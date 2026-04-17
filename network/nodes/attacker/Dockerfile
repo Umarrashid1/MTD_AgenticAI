@@ -22,20 +22,16 @@ WORKDIR /app
 
 # Create a virtual environment for Python
 # Setting the PATH ensures the venv is always "activated"
-ENV VIRTUAL_ENV=/app/cai_env
+ENV VIRTUAL_ENV=/opt/cai_env
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Install the CAI framework
 RUN pip install --no-cache-dir cai-framework
 
-# --- CAI & OLLAMA CONFIGURATION ---
-# Point CAI to the Ollama instance running on your Ubuntu Host!
-ENV CAI_MODEL="ollama/DeepHat"
-ENV OPENAI_API_BASE="http://172.17.0.1:11434"
-# (LiteLLM, which CAI uses under the hood, looks for the OPENAI_API_BASE
-# variable to route traffic, even when talking to Ollama)
-COPY main.py /app/main.py
-COPY .env /app/.env
+#Mounted for now
+#COPY main.py /app/main.py
+#COPY .env /app/.env
+
 # Containernet requires the container to stay alive.
 CMD ["tail", "-f", "/dev/null"]
