@@ -3,7 +3,7 @@ import sys
 import asyncio
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv('/app/.env', override=True)
 
 try:
     from cai.sdk.agents import Agent, Runner
