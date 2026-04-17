@@ -1,34 +1,26 @@
-# Stage 1: Get the Juice Shop files
-FROM bkimminich/juice-shop:latest AS source
+FROM bkimminich/juice-shop:latest
 
-# Stage 2: Build our functional victim container
-FROM node:18-bookworm-slim
+USER root
 
-# Install your networking and security tools
-RUN apt-get update && apt-get install -y \
+# This installs the tools directly into the existing Juice Shop image
+RUN apk update && apk add --no-cache \
     python3 \
-    python3-pip \
-    git \
-    net-tools \
-    iproute2 \
-    iputils-ping \
+    py3-pip \
+    bash \
     curl \
     nmap \
-    netcat-traditional \
-    dnsutils \
-    bash \
-    && rm -rf /var/lib/apt/lists/*
+    net-tools \
+    iproute2 \
+    iputils \
+    bind-tools
 
-# Set the working directory
 WORKDIR /juice-shop
 
-# Copy the application from the official image (using the correct path)
-COPY --from=source /juice-shop /juice-shop
-
-# Fix permissions so the app can write to its local database if needed
-RUN chown -R node:node /juice-shop
+# Crucial: Ensure the 'node' user still owns the app files 
+# so 'npm start' doesn't have permission issues.
+RUN chown -R juice-shop:juice-shop /juice-shop
 
 EXPOSE 3000
 
-# Start Juice Shop and keep the container open for Containernet
-CMD npm start & tail -f /dev/null
+# We use 'sh -c' to ensure the background process starts correctly
+CMD ["sh", "-c", "npm start & tail -f /dev/null"]
