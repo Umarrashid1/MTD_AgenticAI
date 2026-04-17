@@ -5,9 +5,9 @@
 # ==========================================
 # List of real, physical IP addresses in the network
 REAL_HOSTS = [
-    "10.0.0.100", # c1
-    "10.0.0.200", # decoy
-    "10.0.0.251"  # target
+    "10.0.0.1", # c1
+    "10.0.0.2", # decoy
+    "10.0.0.3"  # target
 ]
 
 # Subnet used to generate fake Virtual IPs
