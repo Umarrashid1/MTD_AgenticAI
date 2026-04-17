@@ -4,6 +4,7 @@ from mininet.node import RemoteController
 from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import info, setLogLevel
+import os
 
 setLogLevel('info')
 pwd = os.getcwd()
