@@ -113,7 +113,12 @@ class ControllerMTD(app_manager.RyuApp):
         target_mac_for_forwarding = eth.dst 
         
         if pkt_ipv4:
+            
             self.ip_to_mac[pkt_ipv4.src] = eth.src
+
+            if pkt_ipv4.dst in config.REAL_HOSTS:
+                self.logger.warning("[MTD SHIELD] DROP: trYING TO ACCESS REAL IP {} FROM {}".format(pkt_ipv4.dst, pkt_ipv4.src))
+                return #
             
             # --- INBOUND NAT: Virtual Client -> Real Server ---
             if self.mtd_engine.is_virtual_ip(pkt_ipv4.dst):
