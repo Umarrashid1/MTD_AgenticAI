@@ -35,7 +35,13 @@ def create_topology():
     # Decoy?
     decoy = net.addDocker('decoy', ip='10.0.0.2/24', mac='00:00:00:00:00:DD', dimage="ubuntu:trusty")
     # Vulnerable Target
-    target = net.addDocker('target', ip='10.0.0.3/24', mac='00:00:00:00:00:FF', dimage="ubuntu:trusty")
+    target = net.addDocker(
+        'target',
+        ip='10.0.0.3/24',
+        mac='00:00:00:00:00:FF',
+        dimage="bkimminich/juice-shop"
+    )
+
 
     info('*** Adding switches (Core & Edge)\n')
     s1 = net.addSwitch('s1', protocols='OpenFlow13') # Core Switch
