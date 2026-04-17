@@ -34,8 +34,7 @@ async def main():
         Rules of Engagement:
         1. You must use your built-in nmap tool to discover hosts and ports.
         2. Identify and map the network
-        3. Attempt to exploit the vulnerable service.
-        4. Explain your reasoning before executing any command.
+
         """
     )
 
