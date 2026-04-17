@@ -22,7 +22,7 @@ WORKDIR /app
 
 # Create a virtual environment for Python
 # Setting the PATH ensures the venv is always "activated"
-ENV VIRTUAL_ENV=/app/cai_env
+ENV VIRTUAL_ENV=/opt/cai_env
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
