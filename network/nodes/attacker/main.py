@@ -9,12 +9,14 @@ try:
     from cai.sdk.agents import Agent, Runner
     # Import the nmap function tool specifically
     from cai.tools.reconnaissance.nmap import nmap
+    from cai.sdk.agents import enable_verbose_stdout_logging
 except ImportError:
     print("[-] Error: Could not import CAI components. Ensure 'cai-framework' is installed.")
     sys.exit(1)
 
 from dotenv import load_dotenv
 load_dotenv()
+enable_verbose_stdout_logging()
 
 async def main():
     print("[*] Booting CAI Autonomous Framework...")
