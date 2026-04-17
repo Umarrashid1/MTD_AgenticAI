@@ -7,8 +7,7 @@ from mininet.log import info, setLogLevel
 import os
 
 setLogLevel('info')
-pwd = os.getcwd()
-
+attacker_path = os.path.join(pwd, "nodes/attacker")
 def create_topology():
     net = Containernet()
     info('*** Adding Remote Ryu Controller\n')
@@ -23,8 +22,7 @@ def create_topology():
         mac='00:00:00:00:00:11',
         dimage="attacker",
         volumes=[
-            f"{pwd}/nodes/attacker/main.py:/app/main.py:rw",
-            f"{pwd}/nodes/attacker/.env:/app/.env:rw"
+            f"{attacker_path}:/app:rw"
         ]
     )
     info('*** Adding Docker containers (Internal Zone)\n')
