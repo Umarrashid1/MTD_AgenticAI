@@ -15,6 +15,7 @@ except ImportError:
 
 from dotenv import load_dotenv
 load_dotenv()
+
 async def main():
     print("[*] Booting CAI Autonomous Framework...")
     print(f"[*] Upstream AI: {os.environ.get('CAI_MODEL')}")
