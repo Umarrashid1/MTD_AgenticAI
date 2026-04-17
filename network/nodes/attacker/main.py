@@ -2,6 +2,9 @@ import os
 import sys
 import asyncio
 
+from dotenv import load_dotenv
+load_dotenv()
+
 try:
     from cai.sdk.agents import Agent, Runner
     # Import the nmap function tool specifically
@@ -10,7 +13,8 @@ except ImportError:
     print("[-] Error: Could not import CAI components. Ensure 'cai-framework' is installed.")
     sys.exit(1)
 
-
+from dotenv import load_dotenv
+load_dotenv()
 async def main():
     print("[*] Booting CAI Autonomous Framework...")
     print(f"[*] Upstream AI: {os.environ.get('CAI_MODEL')}")
