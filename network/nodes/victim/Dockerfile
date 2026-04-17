@@ -1,26 +1,27 @@
-FROM bkimminich/juice-shop:latest
+# Stage 1: Just borrow the files from Juice Shop
+FROM bkimminich/juice-shop:latest AS source
 
-USER root
+# Stage 2: Use a standard Node environment that HAS a shell and apt-get
+FROM node:18-slim
 
-# This installs the tools directly into the existing Juice Shop image
-RUN apk update && apk add --no-cache \
+# Install tools (This is faster because node-slim is a known base)
+RUN apt-get update && apt-get install -y \
     python3 \
-    py3-pip \
-    bash \
     curl \
     nmap \
-    net-tools \
     iproute2 \
-    iputils \
-    bind-tools
+    iputils-ping \
+    net-tools \
+    && rm -rf /var/lib/apt/lists/*
 
+# Create the directory
 WORKDIR /juice-shop
 
-# Crucial: Ensure the 'node' user still owns the app files 
-# so 'npm start' doesn't have permission issues.
-RUN chown -R juice-shop:juice-shop /juice-shop
+# Copy ONLY the essential app files from the source image
+# This is usually the part that takes a long time, so we copy the whole folder
+COPY --from=source /juice-shop /juice-shop
 
 EXPOSE 3000
 
-# We use 'sh -c' to ensure the background process starts correctly
+# Start Juice Shop and keep container alive
 CMD ["sh", "-c", "npm start & tail -f /dev/null"]
