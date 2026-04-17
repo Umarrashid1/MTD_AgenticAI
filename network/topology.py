@@ -4,8 +4,10 @@ from mininet.node import RemoteController
 from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import info, setLogLevel
+import os
 
 setLogLevel('info')
+pwd = os.getcwd()
 
 def create_topology():
     net = Containernet()
@@ -15,8 +17,16 @@ def create_topology():
 
     info('*** Adding Docker containers (External Zone)\n')
     # Attacker agent
-    a1 = net.addDocker('a1', ip='10.0.0.11/24', mac='00:00:00:00:00:11', dimage="attacker")
-
+    a1 = net.addDocker(
+        'a1',
+        ip='10.0.0.11/24',
+        mac='00:00:00:00:00:11',
+        dimage="attacker",
+        volumes=[
+            f"{pwd}/nodes/attacker/main.py:/app/main.py:rw",
+            f"{pwd}/nodes/attacker/.env:/app/.env:rw"
+        ]
+    )
     info('*** Adding Docker containers (Internal Zone)\n')
     # Legitimate Client
     c1 = net.addDocker('c1', ip='10.0.0.1/24', mac='00:00:00:00:00:AA', dimage="ubuntu:trusty")
