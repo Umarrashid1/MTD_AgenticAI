@@ -5,7 +5,6 @@ FROM bkimminich/juice-shop:latest AS source
 FROM node:18-bookworm-slim
 
 # Install your networking and security tools
-# We use apt-get here because bookworm-slim is Debian-based
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -21,13 +20,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
-WORKDIR /app
+WORKDIR /juice-shop
 
-# Copy the application from the official image to this one
-COPY --from=source /app /app
+# Copy the application from the official image (using the correct path)
+COPY --from=source /juice-shop /juice-shop
 
-# Juice Shop needs to run as a specific user for some features,
-# but for a lab 'root' is fine, or you can create one.
+# Fix permissions so the app can write to its local database if needed
+RUN chown -R node:node /juice-shop
+
 EXPOSE 3000
 
 # Start Juice Shop and keep the container open for Containernet
