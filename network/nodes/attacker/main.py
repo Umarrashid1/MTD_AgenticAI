@@ -4,11 +4,12 @@ import asyncio
 from typing import Any
 from dotenv import load_dotenv
 
+load_dotenv('/app/.env', override=True)
+
 # Use your existing imports
 from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper
 from cai.tools.reconnaissance.nmap import nmap
 
-load_dotenv('/app/.env', override=True)
 
 
 class MTDDebbugger(RunHooks):
