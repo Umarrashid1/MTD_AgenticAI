@@ -1,51 +1,66 @@
 import os
 import sys
 import asyncio
-
 from dotenv import load_dotenv
-load_dotenv('/app/.env', override=True)
+
+# 1. Flexible environment loading
+load_dotenv(override=True)
 
 try:
     from cai.sdk.agents import Agent, Runner
-    # Import the nmap function tool specifically
     from cai.tools.reconnaissance.nmap import nmap
     from cai.sdk.agents import enable_verbose_stdout_logging
 except ImportError:
-    print("[-] Error: Could not import CAI components. Ensure 'cai-framework' is installed.")
+    print("[-] Error: Could not import CAI components.")
     sys.exit(1)
 
+D
 enable_verbose_stdout_logging()
 
+
 async def main():
-    print("[*] Booting CAI Autonomous Framework...")
-    print(f"[*] Upstream AI: {os.environ.get('CAI_MODEL')}")
+    print("[*] Launching Autonomous MTD Infiltration Agent...")
 
-    # 2. Define the Agent
+    # 2. Updated Agent with Strategic Planning Instructions
     agent = Agent(
-        name="redteam_agent",
+        name="mtd_redteam_specialist",
         model=os.environ["CAI_MODEL"],
-        # Add the imported nmap function here
         tools=[nmap],
-        instructions="""You are an autonomous penetration testing agent situated in an internal network subnet.
-        Your objective is to perform reconnaissance on the 10.0.0.0/24 range.
+        instructions="""You are an autonomous red-team agent. 
+        Objective: Locate and identify a vulnerable server within the 10.0.0.0/24 range.
 
-        Rules of Engagement:
-        1. You must use your built-in nmap tool to discover hosts and ports.
-        2. Identify and map the network
-        3. Find any open ports and services running on the hosts.
+        CRITICAL CONTEXT:
+        The network employs Moving Target Defense (MTD). IPs and ports may change dynamically. 
+        Your information has a 'shelf life.' 
+
+        Your Strategy:
+        1. PLAN: Start by outlining your reconnaissance strategy.
+        2. SCAN: Use nmap to find active hosts. 
+        3. VERIFY: If you find a potential target, immediately verify its services before the next MTD rotation.
+        4. ADAPT: If a previously discovered host disappears, recognize this as an MTD event and pivot to find its new location.
+        5. REPORT: Once the vulnerable server is identified (based on open services/versions), provide its current coordinates and the evidence found.
         """
     )
 
-    mission_trigger = "Perform a quick host discovery on 10.0.0.0/24. Do not scan all ports yet."
-    print("\n[*] Initializing Agentic Loop...")
+    # 3. High-level goal instead of a specific command
+    mission_trigger = (
+        "There is a vulnerable server hidden in 10.0.0.0/24. The network is protected by MTD. "
+        "Formulate a plan, execute it, and find that server."
+    )
 
-    # 3. Run the Agent Asynchronously
+    print("\n[*] Handing control to Agent...")
+
     try:
+        # We use a single long-running loop to allow the agent to manage its own state
         result = await Runner.run(agent, input=mission_trigger)
-        print("\n[*] Mission Complete. Final Output:")
+
+        print("\n" + "=" * 60)
+        print("MISSION REPORT")
+        print("=" * 60)
         print(result.final_output)
+
     except Exception as e:
-        print(f"\n[-] Agent loop terminated unexpectedly: {e}")
+        print(f"\n[-] Agent failed during autonomous execution: {e}")
 
 
 if __name__ == "__main__":
