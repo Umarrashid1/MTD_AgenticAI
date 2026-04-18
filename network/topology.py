@@ -5,7 +5,7 @@ from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import info, setLogLevel
 from mininet.node import Controller
-
+import os
 
 setLogLevel('info')
 
@@ -21,7 +21,11 @@ def create_topology():
 
     info('*** Adding Docker containers (External Zone)\n')
     # Attacker agent
-    a1 = net.addDocker('a1', ip='10.0.0.11/24', mac='00:00:00:00:00:11', dimage="attacker")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    volume_path = os.path.join(project_root, "network/nodes/attacker:/app:rw")
+    a1 = net.addDocker('a1', ip='10.0.0.11/24', mac='00:00:00:00:00:11', dimage="attacker", volumes=[
+        volume_path
+        ])
 
     info('*** Adding Docker containers (Internal Zone)\n')
     # Legitimate Client
