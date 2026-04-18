@@ -1,46 +1,66 @@
 import os
 import sys
 import asyncio
+from typing import Any
 from dotenv import load_dotenv
+
+# Use your existing imports
+from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper
+from cai.tools.reconnaissance.nmap import nmap
 
 load_dotenv('/app/.env', override=True)
 
-try:
-    from cai.sdk.agents import Agent, Runner, AgentHooks
-    from cai.tools.reconnaissance.nmap import nmap
-except ImportError:
-    print("[-] Error: Could not import CAI components.")
-    sys.exit(1)
 
-class VerboseInformer(AgentHooks):
-    async def on_tool_end(self, context, tool_call, result):
-        """Triggers when nmap finishes but BEFORE it goes to the LLM"""
-        print(f"\n\033[92m[DEBUG] Tool '{tool_call.name}' finished.\033[0m")
-        print(f"\033[94m[RAW TOOL OUTPUT]:\n{result}\033[0m\n")
+class MTDDebbugger(RunHooks):
+    """
+    Hook to intercept and print exactly what nmap sends back
+    and how the LLM responds.
+    """
 
-    async def on_turn_end(self, context, turn_output):
-        """Triggers after the LLM responds but BEFORE the next turn starts"""
-        print(f"\n\033[93m[DEBUG] LLM Response for this turn:\033[0m")
-        print(f"{turn_output.text}\n")
+    async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Any) -> None:
+        print(f"\n\033[94m[~] Agent '{agent.name}' is running tool: {tool.name}\033[0m")
+
+    async def on_tool_end(self, context: RunContextWrapper, agent: Agent, tool: Any, result: str) -> None:
+        print(f"\n\033[92m[+] TOOL OUTPUT (Raw Nmap Result):\033[0m")
+        print("--------------------------------------------------")
+        # This is where we see what the tool actually found
+        print(result)
+        print("--------------------------------------------------")
+        print(f"\033[92m[Tokens used so far: {context.usage.total_tokens}]\033[0m\n")
+
+    async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
+        print(f"\n\033[93m[!] Agent '{agent.name}' Turn Finished.\033[0m")
+        print(f"Final Output: {output}")
+
 
 async def main():
+    # Use your original model from environment
+    model_name = os.environ["CAI_MODEL"]
+
+    debug_hooks = MTDDebbugger()
+
     agent = Agent(
         name="mtd_redteam_specialist",
-        model=os.environ["CAI_MODEL"],
+        model=model_name,
         tools=[nmap],
-        hooks=VerboseInformer(), # Attach the hook here
-        instructions="""Locate the vulnerable server. 
-        Be concise in your reasoning to avoid context overflow."""
+        instructions="""Locate the vulnerable server in 10.0.0.0/24. 
+        Focus on identifying active services. Keep reasoning short."""
     )
 
-    mission_trigger = "Scan 10.0.0.0/24. Find the vulnerable host."
+    mission_trigger = "Perform a quick scan of 10.0.0.0/24 and find the vulnerable host."
+
+    print(f"[*] Starting Agentic Loop (Model: {model_name})...")
 
     try:
-        # Run with the hook active
-        result = await Runner.run(agent, input=mission_trigger)
-        print("\n[*] Mission Complete.")
+        # Note: Hooks are passed to Runner.run, not the Agent constructor
+        await Runner.run(
+            agent,
+            input=mission_trigger,
+            hooks=debug_hooks
+        )
     except Exception as e:
-        print(f"\n[-] Error: {e}")
+        print(f"\n[-] Framework Error: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
