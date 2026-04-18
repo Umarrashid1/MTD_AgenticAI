@@ -28,7 +28,7 @@ async def main():
         name="mtd_redteam_specialist",
         model=os.environ["CAI_MODEL"],
         tools=[nmap],
-        hooks=[VerboseInformer()], # Attach the hook here
+        hooks=VerboseInformer(), # Attach the hook here
         instructions="""Locate the vulnerable server. 
         Be concise in your reasoning to avoid context overflow."""
     )
