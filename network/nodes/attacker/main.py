@@ -14,7 +14,7 @@ except ImportError:
     print("[-] Error: Could not import CAI components.")
     sys.exit(1)
 
-D
+
 enable_verbose_stdout_logging()
 
 
