@@ -3,65 +3,44 @@ import sys
 import asyncio
 from dotenv import load_dotenv
 
-# 1. Flexible environment loading
-load_dotenv(override=True)
+load_dotenv('/app/.env', override=True)
 
 try:
-    from cai.sdk.agents import Agent, Runner
+    from cai.sdk.agents import Agent, Runner, AgentHooks
     from cai.tools.reconnaissance.nmap import nmap
-    from cai.sdk.agents import enable_verbose_stdout_logging
 except ImportError:
     print("[-] Error: Could not import CAI components.")
     sys.exit(1)
 
+class VerboseInformer(AgentHooks):
+    async def on_tool_end(self, context, tool_call, result):
+        """Triggers when nmap finishes but BEFORE it goes to the LLM"""
+        print(f"\n\033[92m[DEBUG] Tool '{tool_call.name}' finished.\033[0m")
+        print(f"\033[94m[RAW TOOL OUTPUT]:\n{result}\033[0m\n")
 
-enable_verbose_stdout_logging()
-
+    async def on_turn_end(self, context, turn_output):
+        """Triggers after the LLM responds but BEFORE the next turn starts"""
+        print(f"\n\033[93m[DEBUG] LLM Response for this turn:\033[0m")
+        print(f"{turn_output.text}\n")
 
 async def main():
-    print("[*] Launching Autonomous MTD Infiltration Agent...")
-
-    # 2. Updated Agent with Strategic Planning Instructions
     agent = Agent(
         name="mtd_redteam_specialist",
         model=os.environ["CAI_MODEL"],
         tools=[nmap],
-        instructions="""You are an autonomous red-team agent. 
-        Objective: Locate and identify a vulnerable server within the 10.0.0.0/24 range.
-
-        CRITICAL CONTEXT:
-        The network employs Moving Target Defense (MTD). IPs and ports may change dynamically. 
-        Your information has a 'shelf life.' 
-
-        Your Strategy:
-        1. PLAN: Start by outlining your reconnaissance strategy.
-        2. SCAN: Use nmap to find active hosts. 
-        3. VERIFY: If you find a potential target, immediately verify its services before the next MTD rotation.
-        4. ADAPT: If a previously discovered host disappears, recognize this as an MTD event and pivot to find its new location.
-        5. REPORT: Once the vulnerable server is identified (based on open services/versions), provide its current coordinates and the evidence found.
-        """
+        hooks=[VerboseInformer()], # Attach the hook here
+        instructions="""Locate the vulnerable server. 
+        Be concise in your reasoning to avoid context overflow."""
     )
 
-    # 3. High-level goal instead of a specific command
-    mission_trigger = (
-        "There is a vulnerable server hidden in 10.0.0.0/24. The network is protected by MTD. "
-        "Formulate a plan, execute it, and find that server."
-    )
-
-    print("\n[*] Handing control to Agent...")
+    mission_trigger = "Scan 10.0.0.0/24. Find the vulnerable host."
 
     try:
-        # We use a single long-running loop to allow the agent to manage its own state
+        # Run with the hook active
         result = await Runner.run(agent, input=mission_trigger)
-
-        print("\n" + "=" * 60)
-        print("MISSION REPORT")
-        print("=" * 60)
-        print(result.final_output)
-
+        print("\n[*] Mission Complete.")
     except Exception as e:
-        print(f"\n[-] Agent failed during autonomous execution: {e}")
-
+        print(f"\n[-] Error: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
