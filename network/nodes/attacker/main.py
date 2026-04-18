@@ -7,9 +7,8 @@ from dotenv import load_dotenv
 load_dotenv('/app/.env', override=True)
 
 # Use your existing imports
-from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper
+from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, enable_verbose_stdout_logging
 from cai.tools.reconnaissance.nmap import nmap
-from agents import enable_verbose_stdout_logging
 
 enable_verbose_stdout_logging()
 
