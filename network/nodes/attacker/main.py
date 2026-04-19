@@ -43,7 +43,7 @@ async def main():
     debug_hooks = MTDDebbugger()
 
     agent = Agent(
-        name="mtd_redteam_specialist",
+        name="redteam_specialist",
         model=model_name,
         tools=[nmap],
         instructions="""Locate the vulnerable server in 10.0.0.0/24. 
