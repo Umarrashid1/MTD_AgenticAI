@@ -13,10 +13,10 @@ def create_topology():
     net = Containernet()
     info('*** Adding Remote Ryu Controller\n')
     # Ryu must be running on port 6653 before starting this script
-    #c0 = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
+    c0 = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
 
     # Normal SDN without MTD
-    c0 = net.addController('c0', controller=Controller)
+    #c0 = net.addController('c0', controller=Controller)
 
 
     info('*** Adding Docker containers (External Zone)\n')
