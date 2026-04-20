@@ -37,7 +37,6 @@ class MTDDebbugger(RunHooks):
 
 
 async def main():
-    # Use your original model from environment
     model_name = os.environ["CAI_MODEL"]
 
     debug_hooks = MTDDebbugger()
@@ -49,7 +48,6 @@ async def main():
         instructions="""Locate the vulnerable server in 10.0.0.0/24. 
         Focus on identifying active services. Keep reasoning short."""
     )
-
     mission_trigger = "Perform a quick scan of 10.0.0.0/24 and find the vulnerable host."
 
     print(f"[*] Starting Agentic Loop (Model: {model_name})...")

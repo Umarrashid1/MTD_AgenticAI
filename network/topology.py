@@ -4,7 +4,7 @@ from mininet.node import RemoteController
 from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import info, setLogLevel
-from mininet.node import Controller
+from mininet.node import Controller, OVSSwitch
 import os
 
 setLogLevel('info')

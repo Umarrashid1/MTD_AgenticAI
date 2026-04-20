@@ -17,8 +17,7 @@ RUN apt-get update && apt-get install -y \
 # Create the directory
 WORKDIR /juice-shop
 
-# Copy ONLY the essential app files from the source image
-# This is usually the part that takes a long time, so we copy the whole folder
+
 COPY --from=source /juice-shop /juice-shop
 
 EXPOSE 3000
