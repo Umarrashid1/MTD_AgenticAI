@@ -31,11 +31,11 @@ def create_topology():
     # Legitimate Client
     c1 = net.addDocker('c1', ip='10.0.0.1/24', mac='00:00:00:00:00:AA', dimage="ubuntu:trusty")
     # Decoy?
-    decoy = net.addDocker('decoy', ip='10.0.0.20/24', mac='00:00:00:00:00:DD', dimage="ubuntu:trusty")
+    decoy = net.addDocker('decoy', ip='10.0.0.2/24', mac='00:00:00:00:00:DD', dimage="ubuntu:trusty")
     # Vulnerable Target
     target = net.addDocker(
         'target',
-        ip='10.0.0.3/24',
+        ip='10.0.0.4/24',
         mac='00:00:00:00:00:FF',
         dimage="victim"
     )
