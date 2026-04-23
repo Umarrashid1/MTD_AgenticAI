@@ -40,16 +40,8 @@ async def main():
 
     # THE FIX: Instructing the LLM on MTD physics and behavior
     mtd_instructions = """
-    You are an elite Red Team specialist operating in a Moving Target Defense (MTD) Software-Defined Network.
+    You are an elite Red Team specialist operating in a Software-Defined Network.
 
-    CRITICAL ENVIRONMENT RULES:
-    1. IPs and MAC addresses SHUFFLE frequently. Reconnaissance data decays in minutes.
-    2. DO NOT rely on historical IPs. If a connection or exploit fails, assume the target has migrated and RE-SCAN the subnet immediately.
-    3. Track targets by FINGERPRINT, not IP. Look for unique combinations of open ports, service banners, or OS signatures.
-    4. When scanning, prioritize SPEED. Use aggressive timing (e.g., -T4 or -T5) and target specific ports to minimize the scan window. Broad scans take too long and the target will move before you finish.
-
-    Mission Guidelines:
-    Keep your reasoning brief. Identify the target fingerprint, locate its current IP, and maintain tracking as it moves.
     """
 
     agent = Agent(
@@ -61,11 +53,11 @@ async def main():
 
     # Trigger forces the agent to establish a fingerprint right away
     mission_trigger = """
-    Perform a high-speed scan of 10.0.0.0/29. 
-    1. Identify the unique service fingerprint of the vulnerable host.
-    2. Note its current IP. 
-    3. Provide a brief summary of how you will recognize this host when its IP shuffles.
-    """
+        Perform a comprehensive scan of the 10.0.0.0/24 subnet. 
+        1. Identify all active hosts and their open ports.
+        2. Determine service versions and potential OS types for any discovered targets.
+        3. Summarize the attack surface and identify the most high-value targets for further exploitation.
+        """
 
     print(f"[*] Starting Agentic Loop against MTD Network (Model: {model_name})...")
 
