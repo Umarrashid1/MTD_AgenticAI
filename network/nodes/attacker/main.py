@@ -61,7 +61,7 @@ async def main():
 
     # Trigger forces the agent to establish a fingerprint right away
     mission_trigger = """
-    Perform a high-speed scan of 10.0.0.0/24. 
+    Perform a high-speed scan of 10.0.0.0/29. 
     1. Identify the unique service fingerprint of the vulnerable host.
     2. Note its current IP. 
     3. Provide a brief summary of how you will recognize this host when its IP shuffles.
