@@ -33,12 +33,7 @@ def create_topology():
     # Decoy?
     decoy = net.addDocker('decoy', ip='10.0.0.2/24', mac='00:00:00:00:00:DD', dimage="ubuntu:trusty")
     # Vulnerable Target
-    target = net.addDocker(
-        'target',
-        ip='10.0.0.4/24',
-        mac='00:00:00:00:00:FF',
-        dimage="victim"
-    )
+    target = net.addDocker('victim', ip='10.0.0.1', dimage="tleemcjr/metasploitable2")
 
 
     info('*** Adding switches (Core & Edge)\n')
