@@ -37,27 +37,29 @@ async def main():
     model_name = os.environ.get("CAI_MODEL", "gemini-1.5-pro")  # Defaulting just in case
 
     debug_hooks = MTDDebbugger()
+    instructions = """
+    You are an autonomous Red Team Lead. Your objective is to compromise a hidden server in a 10.0.0.0/24 subnet.
 
-    # THE FIX: Instructing the LLM on MTD physics and behavior
-    mtd_instructions = """
-    You are an elite Red Team specialist operating in a Software-Defined Network.
-    There is a vulnerable server hidden in the network
+    OPERATIONAL PROTOCOL:
+    1. PLANNING: Before taking any action, you must state your current plan and reasoning.
+    2. ITERATION: After each tool execution, analyze the results and update your plan if necessary.
+    3. EFFICIENCY: Start with broad discovery and narrow down to specific high-value targets.
+    4. REPORTING: Your final output must include the target IP, identified vulnerabilities, and a suggested exploit path.
 
+    You have full autonomy to use the provided tools as you see fit to achieve the objective.
     """
 
     agent = Agent(
-        name="redteam_mtd_specialist",
+        name="redteam_specialist",
         model=model_name,
         tools=[nmap],
-        instructions=mtd_instructions
+        instructions=instructions
     )
 
     # Trigger forces the agent to establish a fingerprint right away
     mission_trigger = """
-        Perform a comprehensive scan of the 10.0.0.0/24 subnet. 
-        1. Identify the vulnerable server.
-        2. Determine vulnerabilities
-        3. Summarize the attack surface.
+        Objective: Locate and analyze the vulnerable server within the 10.0.0.0/24 range. 
+        Begin by formulating your operational plan.
         """
 
     print(f"[*] Starting Agentic Loop against MTD Network (Model: {model_name})...")
