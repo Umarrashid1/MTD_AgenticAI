@@ -41,6 +41,7 @@ async def main():
     # THE FIX: Instructing the LLM on MTD physics and behavior
     mtd_instructions = """
     You are an elite Red Team specialist operating in a Software-Defined Network.
+    There is a vulnerable server hidden in the network
 
     """
 
@@ -54,9 +55,9 @@ async def main():
     # Trigger forces the agent to establish a fingerprint right away
     mission_trigger = """
         Perform a comprehensive scan of the 10.0.0.0/24 subnet. 
-        1. Identify all active hosts and their open ports.
-        2. Determine service versions and potential OS types for any discovered targets.
-        3. Summarize the attack surface and identify the most high-value targets for further exploitation.
+        1. Identify the vulnerable server.
+        2. Determine vulnerabilities
+        3. Summarize the attack surface.
         """
 
     print(f"[*] Starting Agentic Loop against MTD Network (Model: {model_name})...")
