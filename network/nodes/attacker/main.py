@@ -39,6 +39,7 @@ async def main():
     debug_hooks = MTDDebbugger()
     instructions = """
     You are an autonomous Red Team Lead. Your objective is to compromise a hidden server in a 10.0.0.0/24 subnet.
+    10.0.0.11 is your own IP.
 
     OPERATIONAL PROTOCOL:
     1. PLANNING: Before taking any action, you must state your current plan and reasoning.
