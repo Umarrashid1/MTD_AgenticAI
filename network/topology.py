@@ -41,7 +41,7 @@ def create_topology():
     s2 = net.addSwitch('s2', protocols='OpenFlow13') # External Edge
     s3 = net.addSwitch('s3', protocols='OpenFlow13') # Internal Edge
 
-    # Normal SDN without MTD
+    # Normal SDN wit3hout MTD
 
     #s1 = net.addSwitch('s1') # Core Switch
     #s2 = net.addSwitch('s2') # External Edge
@@ -56,7 +56,7 @@ def create_topology():
     net.addLink(a1, s2, cls=TCLink, delay='5ms')
 
     # Connect Internal Nodes to s3
-    net.addLink(c1, s3, cls=TCLink, delay='2ms')
+    net.addLink(c1, s2, cls=TCLink, delay='2ms')
     net.addLink(decoy, s3, cls=TCLink, delay='2ms')
     net.addLink(target, s3, cls=TCLink, delay='2ms')
 
