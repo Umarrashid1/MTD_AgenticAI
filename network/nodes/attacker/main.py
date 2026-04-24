@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv('/app/.env', override=True)
 
 # 1. IMPORTED `handoff` wrapper
-from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, handoff
+from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, handoff, enable_verbose_stdout_logging
 
 # 2. IMPORTED the framework's recommended prompt prefix
 from cai.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
@@ -15,6 +15,7 @@ from cai.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 from cai.tools.reconnaissance.nmap import nmap
 from cai.tools.reconnaissance.generic_linux_command import generic_linux_command
 
+enable_verbose_stdout_logging()
 
 class MTDDebbugger(RunHooks):
     async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Any) -> None:
