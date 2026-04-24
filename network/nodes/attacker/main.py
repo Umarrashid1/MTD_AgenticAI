@@ -5,7 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv('/app/.env', override=True)
 
-from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper
+# 1. IMPORTED `handoff` wrapper
+from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, handoff
+
+# 2. IMPORTED the framework's recommended prompt prefix
+from cai.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 
 # Tool Imports
 from cai.tools.reconnaissance.nmap import nmap
@@ -22,9 +26,7 @@ class MTDDebbugger(RunHooks):
 
 
 async def main():
-    # FIXED: Reverted back to your original, working string method!
     model_name = os.environ.get("CAI_MODEL", "ollama/qwen3.6:35b")
-
     debug_hooks = MTDDebbugger()
 
     print(f"[*] Initializing CAI Multi-Agent Swarm on {model_name}...")
@@ -35,7 +37,8 @@ async def main():
     post_exploit_agent = Agent(
         name="Data_Extractor",
         description="Agent focused on safely extracting data from a compromised machine.",
-        instructions="""
+        handoff_description="Specialized agent for executing base64 data exfiltration after RCE is achieved.", # <-- Added handoff_description
+        instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
         You are the Post-Exploitation specialist. 
         You will receive a functional RCE execution method from the Exploitation Agent.
         Your ONLY job is to extract the database credentials from /var/www/dvwa/config/config.inc.php.
@@ -45,7 +48,7 @@ async def main():
         Report the final database user and password.
         """,
         tools=[generic_linux_command],
-        model=model_name  # <-- Using the string directly
+        model=model_name
     )
 
     # ---------------------------------------------------------
@@ -54,7 +57,8 @@ async def main():
     exploit_agent = Agent(
         name="Exploit_Operator",
         description="Agent focused on gaining Remote Code Execution (RCE) on vulnerable services.",
-        instructions="""
+        handoff_description="Specialized agent for running exploitation commands (like distcc) to gain RCE.", # <-- Added handoff_description
+        instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
         You are the Exploitation specialist.
         You will receive target IPs and vulnerable port details from the Recon agent.
         Use generic_linux_command to exploit those services (e.g., using nmap's distcc-cve2004-2687 script).
@@ -62,8 +66,8 @@ async def main():
         Once RCE is verified, IMMEDIATELY transfer control to the Data_Extractor agent. Tell them exactly how to run commands.
         """,
         tools=[generic_linux_command],
-        handoffs=[post_exploit_agent],
-        model=model_name  # <-- Using the string directly
+        handoffs=[handoff(post_exploit_agent)], # <-- Added handoff() wrapper
+        model=model_name
     )
 
     # ---------------------------------------------------------
@@ -72,15 +76,16 @@ async def main():
     recon_agent = Agent(
         name="Recon_Lead",
         description="Agent focused on scanning networks and identifying vulnerable services.",
-        instructions="""
+        handoff_description="Lead agent that performs network scanning and reconnaissance.", # <-- Added handoff_description
+        instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
         You are the Reconnaissance specialist.
         Your objective is to scan 10.0.0.0/24. Find the target running Metasploitable2.
         Identify open ports, specifically looking for the distccd vulnerability (port 3632).
         Once you have mapped the target IP and identified the vulnerable service, IMMEDIATELY transfer control to the Exploit_Operator agent, providing them with the IP and Port.
         """,
         tools=[nmap],
-        handoffs=[exploit_agent],
-        model=model_name  # <-- Using the string directly
+        handoffs=[handoff(exploit_agent)], # <-- Added handoff() wrapper
+        model=model_name
     )
 
     # Kick off the swarm
