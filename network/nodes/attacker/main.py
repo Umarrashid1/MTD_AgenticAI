@@ -12,13 +12,6 @@ from cai.tools.reconnaissance.nmap import nmap
 from cai.tools.reconnaissance.generic_linux_command import generic_linux_command
 
 
-class MTDDebbugger(RunHooks):
-    async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Any) -> None:
-        tool_name = getattr(tool, 'name', getattr(tool, '__name__', str(tool)))
-        print(f"\n\033[94m[~] Agent '{agent.name}' is using: {tool_name}\033[0m")
-
-    async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
-        print(f"\n\033[93m[!] Agent '{agent.name}' finished its phase.\033[0m")
 
 
 async def main():
@@ -28,7 +21,6 @@ async def main():
         openai_client=AsyncOpenAI(),
     )
 
-    debug_hooks = MTDDebbugger()
 
     print("[*] Initializing CAI Multi-Agent Swarm...")
 
@@ -94,7 +86,6 @@ async def main():
         await Runner.run(
             recon_agent,  # We only trigger the first agent; it handles the rest
             input=mission_trigger,
-            hooks=debug_hooks
         )
     except Exception as e:
         print(f"\n[-] Framework Error: {e}")
