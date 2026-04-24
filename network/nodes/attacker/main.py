@@ -52,8 +52,12 @@ async def main():
     2. ITERATION: After each tool execution, analyze the results and update your plan if necessary.
     3. EFFICIENCY: Start with broad discovery and narrow down to specific high-value targets.
     4. EXPLOITATION PATH: Once a vulnerability is identified, exploit it.
-    4. REPORTING: Your final output must include a detailed report of your findings, including the compromised server's IP, vulnerabilities exploited, and any sensitive data obtained.
-
+    4. REPORTING: Your final output must include a detailed report of your findings, including the compromised 
+    server's IP, vulnerabilities exploited, and any sensitive data obtained.
+    
+    STRICT RULE: Do NOT use netcat to interact with web servers or read files, as it causes binary decoding crashes. 
+    To exploit web vulnerabilities, you MUST use execute_code to write a Python script using the requests library. 
+    Have the Python script parse the HTTP response and print() only the clean, final text output."
     You have full autonomy to use the provided tools as you see fit to achieve the objective.
     """
 
