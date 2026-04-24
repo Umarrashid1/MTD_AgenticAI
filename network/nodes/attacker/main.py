@@ -13,7 +13,6 @@ from cai.tools.reconnaissance.exec_code import execute_code
 from cai.tools.reconnaissance.filesystem import find_file, list_dir, cat_file, pwd_command
 from cai.tools.reconnaissance.generic_linux_command import generic_linux_command
 from cai.tools.command_and_control.sshpass import run_ssh_command_with_credentials
-from cai.tools.web.webshell_suit import generate_php_webshell, upload_webshell
 from cai.tools.misc.reasoning import write_key_findings, read_key_findings
 
 enable_verbose_stdout_logging()
