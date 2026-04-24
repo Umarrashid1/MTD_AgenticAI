@@ -1,28 +1,33 @@
 import os
 import asyncio
+from typing import Any
 from dotenv import load_dotenv
 
 load_dotenv('/app/.env', override=True)
 
-from cai.sdk.agents import Agent, Runner, OpenAIChatCompletionsModel, RunHooks, RunContextWrapper
-from openai import AsyncOpenAI
+from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper
 
 # Tool Imports
 from cai.tools.reconnaissance.nmap import nmap
 from cai.tools.reconnaissance.generic_linux_command import generic_linux_command
 
 
+class MTDDebbugger(RunHooks):
+    async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Any) -> None:
+        tool_name = getattr(tool, 'name', getattr(tool, '__name__', str(tool)))
+        print(f"\n\033[94m[~] Agent '{agent.name}' is using: {tool_name}\033[0m")
+
+    async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
+        print(f"\n\033[93m[!] Agent '{agent.name}' finished its phase.\033[0m")
 
 
 async def main():
-    # Setup Model Configuration
-    model_config = OpenAIChatCompletionsModel(
-        model=os.environ.get("CAI_MODEL", "ollama/qwen3.6:35b"),
-        openai_client=AsyncOpenAI(),
-    )
+    # FIXED: Reverted back to your original, working string method!
+    model_name = os.environ.get("CAI_MODEL", "ollama/qwen3.6:35b")
 
+    debug_hooks = MTDDebbugger()
 
-    print("[*] Initializing CAI Multi-Agent Swarm...")
+    print(f"[*] Initializing CAI Multi-Agent Swarm on {model_name}...")
 
     # ---------------------------------------------------------
     # AGENT 3: THE POST-EXPLOITATION SPECIALIST
@@ -40,7 +45,7 @@ async def main():
         Report the final database user and password.
         """,
         tools=[generic_linux_command],
-        model=model_config
+        model=model_name  # <-- Using the string directly
     )
 
     # ---------------------------------------------------------
@@ -57,8 +62,8 @@ async def main():
         Once RCE is verified, IMMEDIATELY transfer control to the Data_Extractor agent. Tell them exactly how to run commands.
         """,
         tools=[generic_linux_command],
-        handoffs=[post_exploit_agent],  # Passes the baton forward
-        model=model_config
+        handoffs=[post_exploit_agent],
+        model=model_name  # <-- Using the string directly
     )
 
     # ---------------------------------------------------------
@@ -74,8 +79,8 @@ async def main():
         Once you have mapped the target IP and identified the vulnerable service, IMMEDIATELY transfer control to the Exploit_Operator agent, providing them with the IP and Port.
         """,
         tools=[nmap],
-        handoffs=[exploit_agent],  # Passes the baton forward
-        model=model_config
+        handoffs=[exploit_agent],
+        model=model_name  # <-- Using the string directly
     )
 
     # Kick off the swarm
@@ -84,8 +89,9 @@ async def main():
     print("\n[*] Launching Operation (Recon -> Exploit -> Extract)...")
     try:
         await Runner.run(
-            recon_agent,  # We only trigger the first agent; it handles the rest
+            recon_agent,
             input=mission_trigger,
+            hooks=debug_hooks
         )
     except Exception as e:
         print(f"\n[-] Framework Error: {e}")
