@@ -70,8 +70,6 @@ async def main():
             pwd_command,
             generic_linux_command,
             run_ssh_command_with_credentials,
-            generate_php_webshell,
-            upload_webshell,
             write_key_findings,
             read_key_findings
         ],
