@@ -8,10 +8,13 @@ load_dotenv('/app/.env', override=True)
 
 from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, enable_verbose_stdout_logging
 from cai.tools.reconnaissance.nmap import nmap
+from cai.tools.reconnaissance.netcat import netcat
 from cai.tools.reconnaissance.exec_code import execute_code
-from cai.tools.reconnaissance.filesystem import find_file
-from cai.tools.common import generic_linux_command
-from cai.tools.exploitation.ssh import run_ssh_command_with_credentials
+from cai.tools.reconnaissance.filesystem import find_file, list_dir, cat_file, pwd_command
+from cai.tools.reconnaissance.generic_linux_command import generic_linux_command
+from cai.tools.command_and_control.sshpass import run_ssh_command_with_credentials
+from cai.tools.web.webshell_suit import generate_php_webshell, upload_webshell
+from cai.tools.misc.reasoning import write_key_findings, read_key_findings
 
 enable_verbose_stdout_logging()
 
@@ -60,10 +63,18 @@ async def main():
         model=model_name,
         tools=[
             nmap,
+            netcat,
             execute_code,
             find_file,
+            list_dir,
+            cat_file,
+            pwd_command,
             generic_linux_command,
-            run_ssh_command_with_credentials
+            run_ssh_command_with_credentials,
+            generate_php_webshell,
+            upload_webshell,
+            write_key_findings,
+            read_key_findings
         ],
         instructions=instructions
     )
