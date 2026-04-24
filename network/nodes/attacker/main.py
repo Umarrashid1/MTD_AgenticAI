@@ -8,6 +8,10 @@ load_dotenv('/app/.env', override=True)
 
 from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, enable_verbose_stdout_logging
 from cai.tools.reconnaissance.nmap import nmap
+from cai.tools.reconnaissance.exec_code import execute_code
+from cai.tools.reconnaissance.filesystem import find_file
+from cai.tools.common import generic_linux_command
+from cai.tools.exploitation.ssh import run_ssh_command_with_credentials
 
 enable_verbose_stdout_logging()
 
@@ -45,7 +49,8 @@ async def main():
     1. PLANNING: Before taking any action, you must state your current plan and reasoning.
     2. ITERATION: After each tool execution, analyze the results and update your plan if necessary.
     3. EFFICIENCY: Start with broad discovery and narrow down to specific high-value targets.
-    4. REPORTING: Your final output must include the target IP, identified vulnerabilities, and a suggested exploit path.
+    4. EXPLOITATION PATH: Once a vulnerability is identified, exploit it.
+    4. REPORTING: Your final output must include a detailed report of your findings, including the compromised server's IP, vulnerabilities exploited, and any sensitive data obtained.
 
     You have full autonomy to use the provided tools as you see fit to achieve the objective.
     """
@@ -53,13 +58,19 @@ async def main():
     agent = Agent(
         name="redteam_specialist",
         model=model_name,
-        tools=[nmap],
+        tools=[
+            nmap,
+            execute_code,
+            find_file,
+            generic_linux_command,
+            run_ssh_command_with_credentials
+        ],
         instructions=instructions
     )
 
     # Trigger forces the agent to establish a fingerprint right away
     mission_trigger = """
-        Objective: Locate and analyze the vulnerable server within the 10.0.0.0/24 range. 
+        Objective: Locate, analyze and exploit the vulnerable server within the 10.0.0.0/24 range. 
         Begin by formulating your operational plan.
         """
 
