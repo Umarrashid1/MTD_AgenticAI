@@ -119,21 +119,11 @@ async def main():
 
     print("\n[*] Launching Operation (Recon -> Exploit -> Extract)...")
     try:
-        # Create the stream
-        stream = Runner.run_streamed(
+        await Runner.run(
             recon_agent,
             input=mission_trigger,
             hooks=debug_hooks
         )
-
-        # Iterate over the stream and print the chunks in real-time
-        async for chunk in stream:
-            # Depending on the CAI object, it usually yields a string or an object with a text attribute
-            if hasattr(chunk, 'text') and chunk.text:
-                print(chunk.text, end="", flush=True)
-            elif isinstance(chunk, str):
-                print(chunk, end="", flush=True)
-
     except Exception as e:
         print(f"\n[-] Framework Error: {e}")
 
