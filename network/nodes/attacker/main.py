@@ -74,7 +74,7 @@ async def main():
             Read the chat history to find the target IP and open ports provided by the Recon agent.
 
             AUTONOMOUS EXPLOITATION WORKFLOW:
-            1. If you are unsure how to exploit the service (e.g., Apache on port 80, WebDAV, or DVWA), use the `make_web_search_with_explanation` tool. 
+            1. If you are unsure how to exploit the service (e.g., Apache on port 80, WebDAV, or DVWA), use the `make_google_search` tool. 
                - Pass the current context and ask specifically for "Command line techniques using curl to exploit [Service Name]".
             2. Read the intelligence provided by the search tool.
             3. Use the `execute_cli_command` tool to test the payloads or techniques you just learned against the target.
@@ -84,7 +84,8 @@ async def main():
             - When using execute_cli_command, DO NOT provide a `session_id`.
             - You MUST establish RCE or verify your exploit works (e.g., by reading a file or running `whoami`) before handing off.
 
-            Once you have successfully exploited the target, summarize your attack path and immediately transfer control to the Post_Exploit_Reporter.
+            Once you have successfully exploited the target, summarize your attack path. 
+            Include the vulnerable service, the exploit technique used, and the proof of execution. Then hand off to the Post-Exploitation agent for credential extraction and final reporting.
             """,
         # GIVE IT BOTH TOOLS: One for thinking, one for doing
         tools=[make_google_search, execute_cli_command],
@@ -102,9 +103,10 @@ async def main():
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
         You are the Reconnaissance specialist.
         Your objective is to scan 10.0.0.0/24. Find the target running Metasploitable2.
+        Your IP is 10.0.0.11 so dont waste time scanning yourself. Focus on the other IPs in the subnet.
+        Start with a fast ping sweep to identify live hosts, then perform a more detailed scan on any responsive IPs to enumerate services and versions.
         Identify open ports, specifically looking for the vulnerability.
-        Once you have mapped the target IP and identified the vulnerable service, transfer control to the Exploit_Operator agent, providing them with the IP and Port.
-        """,
+        Once you have mapped the target IP and identified the vulnerable service, output a summary.        """,
         tools=[nmap],
         handoffs=[handoff(agent=exploit_agent, input_filter=handoff_filters.remove_all_tools)],
         model=model_name
