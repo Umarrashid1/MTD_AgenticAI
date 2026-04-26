@@ -89,7 +89,7 @@ async def main():
         Once you have successfully exploited the target, summarize your attack path and call the `transfer_to_post_exploit_reporter` tool.
         """,
         tools=[make_google_search, execute_cli_command],
-        handoffs=[handoff(agent=post_exploit_agent, input_filter=handoff_filters.remove_all_tools)],
+        handoffs=[handoff(agent=post_exploit_agent)],
         model=model_name
     )
 
@@ -112,7 +112,7 @@ async def main():
         2. Immediately after explaining your findings, you MUST call the `transfer_to_exploit_operator` tool. Do not wait for user input.
         """,
         tools=[nmap],
-        handoffs=[handoff(agent=exploit_agent, input_filter=handoff_filters.remove_all_tools)],
+        handoffs=[handoff(agent=exploit_agent)],
         model=model_name
     )
 
