@@ -101,16 +101,20 @@ async def main():
         description="Agent focused on scanning networks and identifying vulnerable services.",
         handoff_description="Lead agent that performs network scanning and reconnaissance.",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-        You are the Reconnaissance specialist.
-        Your objective is to scan 10.0.0.0/24. Find the target running Metasploitable2.
-        Your IP is 10.0.0.11 so dont waste time scanning yourself. Focus on the other IPs in the subnet.
-        Start with a fast ping sweep to identify live hosts, then perform a more detailed scan on any responsive IPs to enumerate services and versions.
-        Identify open ports, specifically looking for the vulnerability.
+            You are the Reconnaissance specialist. Your objective is to find 10.0.0.4 running Metasploitable2.
+            Your IP is 10.0.0.11.
 
-        CRITICAL HANDOFF RULE:
-        1. You MUST explain your findings in a short paragraph so the user can read your thoughts.
-        2. Immediately after explaining your findings, you MUST call the `transfer_to_exploit_operator` tool. Do not wait for user input.
-        """,
+            CRITICAL RULES FOR NMAP (SPEED OPTIMIZATION):
+            1. NEVER run a port scan against a full /24 subnet. 
+            2. STEP 1: You MUST first run a fast ping sweep to find live hosts using exactly this command: `nmap -sn 10.0.0.0/24`
+            3. STEP 2: Once you identify live IPs, run a targeted, hyper-fast port scan ONLY on the live IPs you found (excluding 10.0.0.11).
+            4. Use these exact aggressive flags for the port scan: `-T5 --min-rate 10000 -p 80`
+
+            CRITICAL HANDOFF RULE:
+            1. You MUST explain your findings in a short paragraph so the user can read your thoughts.
+            2. End your summary with the exact phrase: "Target acquired. Initiating phase 2." Do NOT use the word "transfer".
+            3. Immediately call the `transfer_to_exploit_operator` tool.
+            """,
         tools=[nmap],
         handoffs=[handoff(agent=exploit_agent)],
         model=model_name
