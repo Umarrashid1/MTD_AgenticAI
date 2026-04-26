@@ -23,9 +23,12 @@ class MTDDebbugger(RunHooks):
         tool_name = getattr(tool, 'name', getattr(tool, '__name__', str(tool)))
         print(f"\n\033[94m[~] Agent '{agent.name}' is using: {tool_name}\033[0m")
 
+    async def on_tool_end(self, context: RunContextWrapper, agent: Agent, tool: Any, output: Any) -> None:
+        tool_name = getattr(tool, 'name', getattr(tool, '__name__', str(tool)))
+        print(f"\n\033[92m[<] Tool '{tool_name}' returned:\n{output}\033[0m")
+
     async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
         print(f"\n\033[93m[!] Agent '{agent.name}' finished its phase.\033[0m")
-
 
 async def main():
     model_name = os.environ.get("CAI_MODEL", "ollama/qwen3.6:35b")
