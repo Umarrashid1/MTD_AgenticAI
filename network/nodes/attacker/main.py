@@ -14,7 +14,8 @@ from cai.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 
 # Tool Imports
 from cai.tools.reconnaissance.nmap import nmap
-from cai.tools.reconnaissance.generic_linux_command import generic_linux_command
+from cai.tools.misc.cli_utils import execute_cli_command
+from cai.tools.web.search_web import make_google_search
 
 enable_verbose_stdout_logging()
 
@@ -57,7 +58,7 @@ async def main():
             - The proof of execution (e.g., the user the server is running as).
             - The extracted database credentials.
             """,
-        tools=[generic_linux_command],
+        tools=[execute_cli_command],
         model=model_name
     )
 
@@ -67,15 +68,26 @@ async def main():
     exploit_agent = Agent(
         name="Exploit_Operator",
         description="Agent focused on gaining Remote Code Execution (RCE) on vulnerable services.",
-        handoff_description="Specialized agent for running exploitation commands (like distcc) to gain RCE.", # <-- Added handoff_description
+        handoff_description="Specialized agent for running exploitation commands to gain RCE.",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-        You are the Exploitation specialist.
-        You will receive target IPs and vulnerable port details from the Recon agent.
-        Use generic_linux_command to exploit those services.
-        Verify you have execution by running `id` or `whoami`.
-        Once RCE is verified,  transfer control to the Data_Extractor agent. Tell them exactly how to run commands.
-        """,
-        tools=[generic_linux_command],
+            You are the Exploitation specialist. 
+            Read the chat history to find the target IP and open ports provided by the Recon agent.
+
+            AUTONOMOUS EXPLOITATION WORKFLOW:
+            1. If you are unsure how to exploit the service (e.g., Apache on port 80, WebDAV, or DVWA), use the `make_web_search_with_explanation` tool. 
+               - Pass the current context and ask specifically for "Command line techniques using curl to exploit [Service Name]".
+            2. Read the intelligence provided by the search tool.
+            3. Use the `execute_cli_command` tool to test the payloads or techniques you just learned against the target.
+            4. Iterate. If a command fails, search for a different method and try again.
+
+            CRITICAL RULES:
+            - When using execute_cli_command, DO NOT provide a `session_id`.
+            - You MUST establish RCE or verify your exploit works (e.g., by reading a file or running `whoami`) before handing off.
+
+            Once you have successfully exploited the target, summarize your attack path and immediately transfer control to the Post_Exploit_Reporter.
+            """,
+        # GIVE IT BOTH TOOLS: One for thinking, one for doing
+        tools=[make_google_search, execute_cli_command],
         handoffs=[handoff(agent=post_exploit_agent, input_filter=handoff_filters.remove_all_tools)],
         model=model_name
     )
