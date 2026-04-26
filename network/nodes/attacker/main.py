@@ -66,7 +66,7 @@ async def main():
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
         You are the Exploitation specialist.
         You will receive target IPs and vulnerable port details from the Recon agent.
-        Use generic_linux_command to exploit those services (e.g., using nmap's distcc-cve2004-2687 script).
+        Use generic_linux_command to exploit those services.
         Verify you have execution by running `id` or `whoami`.
         Once RCE is verified, IMMEDIATELY transfer control to the Data_Extractor agent. Tell them exactly how to run commands.
         """,
@@ -85,7 +85,7 @@ async def main():
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
         You are the Reconnaissance specialist.
         Your objective is to scan 10.0.0.0/24. Find the target running Metasploitable2.
-        Identify open ports, specifically looking for the distccd vulnerability (port 3632).
+        Identify open ports, specifically looking for the vulnerability.
         Once you have mapped the target IP and identified the vulnerable service, IMMEDIATELY transfer control to the Exploit_Operator agent, providing them with the IP and Port.
         """,
         tools=[nmap],
