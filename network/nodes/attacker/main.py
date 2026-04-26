@@ -7,6 +7,7 @@ load_dotenv('/app/.env', override=True)
 
 # 1. IMPORTED `handoff` wrapper
 from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, handoff, enable_verbose_stdout_logging
+from cai.sdk.agents.extensions import handoff_filters
 
 # 2. IMPORTED the framework's recommended prompt prefix
 from cai.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
@@ -67,7 +68,7 @@ async def main():
         Once RCE is verified, IMMEDIATELY transfer control to the Data_Extractor agent. Tell them exactly how to run commands.
         """,
         tools=[generic_linux_command],
-        handoffs=[handoff(post_exploit_agent)], # <-- Added handoff() wrapper
+        handoffs=[handoff(agent=post_exploit_agent, input_filter=handoff_filters.remove_all_tools)],
         model=model_name
     )
 
@@ -85,7 +86,7 @@ async def main():
         Once you have mapped the target IP and identified the vulnerable service, IMMEDIATELY transfer control to the Exploit_Operator agent, providing them with the IP and Port.
         """,
         tools=[nmap],
-        handoffs=[handoff(exploit_agent)], # <-- Added handoff() wrapper
+        handoffs=[handoff(agent=exploit_agent, input_filter=handoff_filters.remove_all_tools)],
         model=model_name
     )
 
