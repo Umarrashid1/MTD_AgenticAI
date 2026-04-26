@@ -117,7 +117,7 @@ async def main():
 
     print("\n[*] Launching Operation (Recon -> Exploit -> Extract)...")
     try:
-        await Runner.run(
+        await Runner.run_streamed(
             recon_agent,
             input=mission_trigger,
             hooks=debug_hooks
