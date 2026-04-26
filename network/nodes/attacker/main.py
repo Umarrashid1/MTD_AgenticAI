@@ -99,14 +99,16 @@ async def main():
     recon_agent = Agent(
         name="Recon_Lead",
         description="Agent focused on scanning networks and identifying vulnerable services.",
-        handoff_description="Lead agent that performs network scanning and reconnaissance.", # <-- Added handoff_description
+        handoff_description="Lead agent that performs network scanning and reconnaissance.",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-        You are the Reconnaissance specialist.
-        Your objective is to scan 10.0.0.0/24. Find the target running Metasploitable2.
-        Your IP is 10.0.0.11 so dont waste time scanning yourself. Focus on the other IPs in the subnet.
-        Start with a fast ping sweep to identify live hosts, then perform a more detailed scan on any responsive IPs to enumerate services and versions.
-        Identify open ports, specifically looking for the vulnerability.
-        Once you have mapped the target IP and identified the vulnerable service, output a summary.        """,
+            You are the Reconnaissance specialist.
+            Your objective is to scan 10.0.0.0/24. Find the target running Metasploitable2.
+            Your IP is 10.0.0.11 so dont waste time scanning yourself. Focus on the other IPs in the subnet.
+            Start with a fast ping sweep to identify live hosts, then perform a more detailed scan on any responsive IPs to enumerate services and versions.
+            Identify open ports, specifically looking for the vulnerability.
+
+            Once you have mapped the target IP and identified the vulnerable service, output a summary, AND THEN IMMEDIATELY call the transfer_to_exploit_operator tool!
+            """,
         tools=[nmap],
         handoffs=[handoff(agent=exploit_agent, input_filter=handoff_filters.remove_all_tools)],
         model=model_name
@@ -117,11 +119,21 @@ async def main():
 
     print("\n[*] Launching Operation (Recon -> Exploit -> Extract)...")
     try:
-        await Runner.run_streamed(
+        # Create the stream
+        stream = Runner.run_streamed(
             recon_agent,
             input=mission_trigger,
             hooks=debug_hooks
         )
+
+        # Iterate over the stream and print the chunks in real-time
+        async for chunk in stream:
+            # Depending on the CAI object, it usually yields a string or an object with a text attribute
+            if hasattr(chunk, 'text') and chunk.text:
+                print(chunk.text, end="", flush=True)
+            elif isinstance(chunk, str):
+                print(chunk, end="", flush=True)
+
     except Exception as e:
         print(f"\n[-] Framework Error: {e}")
 
