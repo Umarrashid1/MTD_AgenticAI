@@ -72,22 +72,23 @@ async def main():
         description="Agent focused on gaining Remote Code Execution (RCE) on vulnerable services.",
         handoff_description="Specialized agent for running exploitation commands to gain RCE.",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-        You are the Exploitation specialist. You have JUST received control of the operation. The handoff to you is complete.
-        Read the chat history to find the target IP and open ports provided by the Recon agent.
+            You are the Exploitation specialist. You have JUST received control of the operation. The handoff to you is complete.
+            Read the chat history to find the target IP and open ports provided by the Recon agent.
 
-        AUTONOMOUS EXPLOITATION WORKFLOW:
-        1. If you are unsure how to exploit the service (e.g., Apache on port 80, WebDAV, or DVWA), use the `make_google_search` tool. 
-           - Ask specifically for "Command line techniques using curl to exploit [Service Name]".
-        2. Read the intelligence provided by the search tool.
-        3. Use the `execute_cli_command` tool to test the payloads or techniques you just learned against the target.
-        4. Iterate. If a command fails, search for a different method and try again.
+            AUTONOMOUS EXPLOITATION WORKFLOW:
+            1. If you are unsure how to exploit the service (e.g., Apache on port 80, WebDAV, or DVWA), use the `make_google_search` tool. 
+               - Ask specifically for "Command line techniques using curl to exploit [Service Name]".
+            2. Read the intelligence provided by the search tool.
+            3. Use the `execute_cli_command` tool to test the payloads or techniques you just learned against the target.
+            4. Iterate. If a command fails, search for a different method and try again.
 
-        CRITICAL RULES:
-        - DO NOT call any handoff tools until you have established RCE.
-        - You MUST establish RCE or verify your exploit works (e.g., by reading a file or running `whoami`) before handing off.
+            CRITICAL RULES:
+            - DO NOT attempt to call the `nmap` tool. That was the previous agent's job. You ONLY have the `execute_cli_command` and `make_google_search` tools.
+            - DO NOT call any handoff tools until you have established RCE.
+            - You MUST establish RCE or verify your exploit works (e.g., by reading a file or running `whoami`) before handing off.
 
-        Once you have successfully exploited the target, summarize your attack path and call the `transfer_to_post_exploit_reporter` tool.
-        """,
+            Once you have successfully exploited the target, summarize your attack path and call the `transfer_to_post_exploit_reporter` tool.
+            """,
         tools=[make_google_search, execute_cli_command],
         handoffs=[handoff(agent=post_exploit_agent)],
         model=model_name
