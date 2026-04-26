@@ -17,6 +17,8 @@ from cai.tools.reconnaissance.nmap import nmap
 from cai.tools.misc.cli_utils import execute_cli_command
 from cai.tools.web.search_web import make_google_search
 
+from openai.types.responses import ResponseTextDeltaEvent
+
 enable_verbose_stdout_logging()
 
 class MTDDebbugger(RunHooks):
@@ -119,14 +121,18 @@ async def main():
 
     print("\n[*] Launching Operation (Recon -> Exploit -> Extract)...")
     try:
-        await Runner.run(
+        # Get the streaming result object
+        result = Runner.run_streamed(
             recon_agent,
             input=mission_trigger,
             hooks=debug_hooks
         )
+
+        # Iterate over the actual stream events
+        async for event in result.stream_events():
+            # Check for raw text generation and print the tokens
+            if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                print(event.data.delta, end="", flush=True)
+
     except Exception as e:
         print(f"\n[-] Framework Error: {e}")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
