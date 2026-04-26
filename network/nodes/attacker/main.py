@@ -39,19 +39,24 @@ async def main():
     # ---------------------------------------------------------
     # AGENT 3: THE POST-EXPLOITATION SPECIALIST
     # ---------------------------------------------------------
+
     post_exploit_agent = Agent(
-        name="Data_Extractor",
-        description="Agent focused on safely extracting data from a compromised machine.",
-        handoff_description="Specialized agent for executing base64 data exfiltration after RCE is achieved.", # <-- Added handoff_description
+        name="Post_Exploit_Reporter",
+        description="Agent focused on reading configuration files and summarizing the attack chain.",
+        handoff_description="Specialized agent for extracting credentials and writing the final exploitation report.",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-        You are the Post-Exploitation specialist. 
-        You will receive a functional RCE execution method from the Exploitation Agent.
-        Your ONLY job is to extract the database credentials from /var/www/dvwa/config/config.inc.php.
-        Do NOT search for CTF flags. 
-        Use generic_linux_command to execute a bash base64 extraction to avoid terminal parsing errors:
-        e.g., run the exploit to `base64 /var/www/dvwa/config/config.inc.php`, then decode the clean string locally.
-        Report the final database user and password.
-        """,
+            You are the Post-Exploitation Reporter. You have JUST received control of the operation.
+
+            Step 1: Read the chat history to understand how the Exploit_Operator successfully gained Remote Code Execution (RCE) on the target.
+            Step 2: Use the execute_cli_command tool to read the contents of /var/www/dvwa/config/config.inc.php (e.g., using the `cat` command).
+            Step 3: Extract the database user and password from the configuration file.
+
+            Final Step: Generate a concise 'Post-Exploitation Report' that tells the user exactly what happened. Your report must include:
+            - The target IP and vulnerable web port.
+            - A brief summary of the exploit/command used to gain RCE.
+            - The proof of execution (e.g., the user the server is running as).
+            - The extracted database credentials.
+            """,
         tools=[generic_linux_command],
         model=model_name
     )
@@ -68,7 +73,7 @@ async def main():
         You will receive target IPs and vulnerable port details from the Recon agent.
         Use generic_linux_command to exploit those services.
         Verify you have execution by running `id` or `whoami`.
-        Once RCE is verified, IMMEDIATELY transfer control to the Data_Extractor agent. Tell them exactly how to run commands.
+        Once RCE is verified,  transfer control to the Data_Extractor agent. Tell them exactly how to run commands.
         """,
         tools=[generic_linux_command],
         handoffs=[handoff(agent=post_exploit_agent, input_filter=handoff_filters.remove_all_tools)],
@@ -86,7 +91,7 @@ async def main():
         You are the Reconnaissance specialist.
         Your objective is to scan 10.0.0.0/24. Find the target running Metasploitable2.
         Identify open ports, specifically looking for the vulnerability.
-        Once you have mapped the target IP and identified the vulnerable service, IMMEDIATELY transfer control to the Exploit_Operator agent, providing them with the IP and Port.
+        Once you have mapped the target IP and identified the vulnerable service, transfer control to the Exploit_Operator agent, providing them with the IP and Port.
         """,
         tools=[nmap],
         handoffs=[handoff(agent=exploit_agent, input_filter=handoff_filters.remove_all_tools)],
