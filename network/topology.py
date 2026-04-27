@@ -4,8 +4,8 @@ from mininet.node import RemoteController
 from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import info, setLogLevel
-from mininet.node import Controller
-
+from mininet.node import Controller, OVSSwitch
+import os
 
 setLogLevel('info')
 
@@ -16,12 +16,16 @@ def create_topology():
     c0 = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
 
     # Normal SDN without MTD
-    # c0 = net.addController('c0', controller=Controller)
+    #c0 = net.addController('c0', controller=Controller)
 
 
     info('*** Adding Docker containers (External Zone)\n')
     # Attacker agent
-    a1 = net.addDocker('a1', ip='10.0.0.11/24', mac='00:00:00:00:00:11', dimage="attacker")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    volume_path = os.path.join(project_root, "network/nodes/attacker:/app:rw")
+    a1 = net.addDocker('a1', ip='10.0.0.11/24', mac='00:00:00:00:00:11', dimage="attacker", volumes=[
+        volume_path
+        ])
 
     info('*** Adding Docker containers (Internal Zone)\n')
     # Legitimate Client
@@ -29,12 +33,7 @@ def create_topology():
     # Decoy?
     decoy = net.addDocker('decoy', ip='10.0.0.2/24', mac='00:00:00:00:00:DD', dimage="ubuntu:trusty")
     # Vulnerable Target
-    target = net.addDocker(
-        'target',
-        ip='10.0.0.3/24',
-        mac='00:00:00:00:00:FF',
-        dimage="victim"
-    )
+    target = net.addDocker('victim', ip='10.0.0.4/24', dimage="tleemcjr/metasploitable2")
 
 
     info('*** Adding switches (Core & Edge)\n')
@@ -42,7 +41,7 @@ def create_topology():
     s2 = net.addSwitch('s2', protocols='OpenFlow13') # External Edge
     s3 = net.addSwitch('s3', protocols='OpenFlow13') # Internal Edge
 
-    # Normal SDN without MTD
+    # Normal SDN wit3hout MTD
 
     #s1 = net.addSwitch('s1') # Core Switch
     #s2 = net.addSwitch('s2') # External Edge

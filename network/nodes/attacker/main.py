@@ -1,50 +1,145 @@
 import os
-import sys
 import asyncio
-
+from typing import Any
 from dotenv import load_dotenv
+
+# Import the specific Pydantic model needed for raw streaming
+from openai.types.responses import ResponseTextDeltaEvent
+
 load_dotenv('/app/.env', override=True)
 
-try:
-    from cai.sdk.agents import Agent, Runner
-    # Import the nmap function tool specifically
-    from cai.tools.reconnaissance.nmap import nmap
-    from cai.sdk.agents import enable_verbose_stdout_logging
-except ImportError:
-    print("[-] Error: Could not import CAI components. Ensure 'cai-framework' is installed.")
-    sys.exit(1)
+# CAI Imports
+from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, handoff, enable_verbose_stdout_logging
+from cai.sdk.agents.extensions import handoff_filters
+from cai.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
+
+# Tool Imports
+from cai.tools.reconnaissance.nmap import nmap
+from cai.tools.misc.cli_utils import execute_cli_command
+from cai.tools.web.search_web import make_google_search
 
 enable_verbose_stdout_logging()
 
+
+class MTDDebbugger(RunHooks):
+    async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Any) -> None:
+        tool_name = getattr(tool, 'name', getattr(tool, '__name__', str(tool)))
+        print(f"\n\033[94m[~] Agent '{agent.name}' is using: {tool_name}\033[0m")
+
+    async def on_tool_end(self, context: RunContextWrapper, agent: Agent, tool: Any, output: Any) -> None:
+        tool_name = getattr(tool, 'name', getattr(tool, '__name__', str(tool)))
+        print(f"\n\033[92m[<] Tool '{tool_name}' returned:\n{output}\033[0m")
+
+    async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
+        print(f"\n\033[93m[!] Agent '{agent.name}' finished its phase.\033[0m")
+
+
 async def main():
-    print("[*] Booting CAI Autonomous Framework...")
-    print(f"[*] Upstream AI: {os.environ.get('CAI_MODEL')}")
+    model_name = os.environ.get("CAI_MODEL", "ollama/qwen3.6:35b")
+    debug_hooks = MTDDebbugger()
 
-    # 2. Define the Agent
-    agent = Agent(
-        name="redteam_agent",
-        model=os.environ["CAI_MODEL"],
-        # Add the imported nmap function here
-        tools=[nmap],
-        instructions="""You are an autonomous penetration testing agent situated in an internal network subnet.
-        Your objective is to perform reconnaissance on the 10.0.0.0/24 range.
+    print(f"\n[*] Initializing CAI Multi-Agent Swarm on {model_name}...")
 
-        Rules of Engagement:
-        1. You must use your built-in nmap tool to discover hosts and ports.
-        2. Identify and map the network
-        """
+    # ---------------------------------------------------------
+    # AGENT 3: THE POST-EXPLOITATION SPECIALIST
+    # ---------------------------------------------------------
+    post_exploit_agent = Agent(
+        name="Post_Exploit_Reporter",
+        description="Agent focused on reading configuration files and summarizing the attack chain.",
+        handoff_description="Specialized agent for extracting credentials and writing the final exploitation report.",
+        instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
+        You are the Post-Exploitation Reporter. You have JUST received control of the operation.
+
+        Step 1: Read the chat history to understand how the Exploit_Operator successfully gained Remote Code Execution (RCE) on the target.
+        Step 2: Use the execute_cli_command tool to read the contents of /var/www/dvwa/config/config.inc.php (e.g., using the `cat` command).
+        Step 3: Extract the database user and password from the configuration file.
+
+        Final Step: Generate a concise 'Post-Exploitation Report' that tells the user exactly what happened. Your report must include:
+        - The target IP and vulnerable web port.
+        - A brief summary of the exploit/command used to gain RCE.
+        - The proof of execution (e.g., the user the server is running as).
+        - The extracted database credentials.
+        """,
+        tools=[execute_cli_command],
+        model=model_name
     )
 
-    mission_trigger = "Perform a quick host discovery on 10.0.0.0/24. Do not scan all ports yet."
-    print("\n[*] Initializing Agentic Loop...")
+    # ---------------------------------------------------------
+    # AGENT 2: THE EXPLOITATION SPECIALIST
+    # ---------------------------------------------------------
+    exploit_agent = Agent(
+        name="Exploit_Operator",
+        description="Agent focused on gaining Remote Code Execution (RCE) on vulnerable services.",
+        handoff_description="Specialized agent for running exploitation commands to gain RCE.",
+        instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
+            You are the Exploitation specialist. You have JUST received control of the operation. The handoff to you is complete.
+            Read the chat history to find the target IP and open ports provided by the Recon agent.
 
-    # 3. Run the Agent Asynchronously
+            AUTONOMOUS EXPLOITATION WORKFLOW:
+            1. If you are unsure how to exploit the service (e.g., Apache on port 80, WebDAV, or DVWA), use the `make_google_search` tool. 
+               - Ask specifically for "Command line techniques using curl to exploit [Service Name]".
+            2. Read the intelligence provided by the search tool.
+            3. Use the `execute_cli_command` tool to test the payloads or techniques you just learned against the target.
+            4. Iterate. If a command fails, search for a different method and try again.
+
+            CRITICAL RULES:
+            - DO NOT attempt to call the `nmap` tool. That was the previous agent's job. You ONLY have the `execute_cli_command` and `make_google_search` tools.
+            - DO NOT call any handoff tools until you have established RCE.
+            - You MUST establish RCE or verify your exploit works (e.g., by reading a file or running `whoami`) before handing off.
+
+            Once you have successfully exploited the target, summarize your attack path and call the `transfer_to_post_exploit_reporter` tool.
+            """,
+        tools=[make_google_search, execute_cli_command],
+        handoffs=[handoff(agent=post_exploit_agent)],
+        model=model_name
+    )
+
+    # ---------------------------------------------------------
+    # AGENT 1: THE RECONNAISSANCE SPECIALIST (LEAD)
+    # ---------------------------------------------------------
+    recon_agent = Agent(
+        name="Recon_Lead",
+        description="Agent focused on scanning networks and identifying vulnerable services.",
+        handoff_description="Lead agent that performs network scanning and reconnaissance.",
+        instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
+            You are the Reconnaissance specialist. Your objective is to find 10.0.0.4 running Metasploitable2.
+            Your IP is 10.0.0.11.
+
+            CRITICAL RULES FOR NMAP (SPEED OPTIMIZATION):
+            1. NEVER run a port scan against a full /24 subnet. 
+            2. STEP 1: You MUST first run a fast ping sweep to find live hosts using exactly this command: `nmap -sn 10.0.0.0/24`
+            3. STEP 2: Once you identify live IPs, run a targeted, hyper-fast port scan ONLY on the live IPs you found (excluding 10.0.0.11).
+            4. Use these exact aggressive flags for the port scan: `-T5 --min-rate 10000 -p 80`
+
+            CRITICAL HANDOFF RULE:
+            1. You MUST explain your findings in a short paragraph so the user can read your thoughts.
+            2. End your summary with the exact phrase: "Target acquired. Initiating phase 2." Do NOT use the word "transfer".
+            3. Immediately call the `transfer_to_exploit_operator` tool.
+            """,
+        tools=[nmap],
+        handoffs=[handoff(agent=exploit_agent)],
+        model=model_name
+    )
+
+    # Kick off the swarm
+    mission_trigger = "Begin the operation against the 10.0.0.0/24 subnet. Execute Recon."
+    print("[*] Launching Operation (Recon -> Exploit -> Extract)...\n")
+
     try:
-        result = await Runner.run(agent, input=mission_trigger)
-        print("\n[*] Mission Complete. Final Output:")
-        print(result.final_output)
+        # Create the streaming result object
+        result = Runner.run_streamed(
+            recon_agent,
+            input=mission_trigger,
+            hooks=debug_hooks
+        )
+
+        # Iterate over the stream events and print raw text deltas in real-time
+        async for event in result.stream_events():
+            if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                print(event.data.delta, end="", flush=True)
+
     except Exception as e:
-        print(f"\n[-] Agent loop terminated unexpectedly: {e}")
+        print(f"\n[-] Framework Error: {e}")
 
 
 if __name__ == "__main__":
