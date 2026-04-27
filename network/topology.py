@@ -57,7 +57,7 @@ def create_topology():
     net.addLink(a1, s2, cls=TCLink, delay='5ms')
 
     # Connect Internal Nodes to s3
-    net.addLink(c1, s3, cls=TCLink, delay='2ms')
+    net.addLink(c1, s2, cls=TCLink, delay='2ms')
     net.addLink(decoy, s3, cls=TCLink, delay='2ms')
     net.addLink(target, s3, cls=TCLink, delay='2ms')
 
