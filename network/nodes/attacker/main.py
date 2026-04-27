@@ -45,22 +45,15 @@ async def main():
     # ---------------------------------------------------------
     post_exploit_agent = Agent(
         name="Post_Exploit_Reporter",
-        description="Agent focused on reading configuration files and summarizing the attack chain.",
-        handoff_description="Specialized agent for extracting credentials and writing the final exploitation report.",
-        instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-        You are the Post-Exploitation Reporter. You have JUST received control of the operation.
-
-        Step 1: Read the chat history to understand how the Exploit_Operator successfully gained Remote Code Execution (RCE) on the target.
-        Step 2: Use the execute_cli_command tool to read the contents of /var/www/dvwa/config/config.inc.php (e.g., using the `cat` command).
-        Step 3: Extract the database user and password from the configuration file.
-
-        Final Step: Generate a concise 'Post-Exploitation Report' that tells the user exactly what happened. Your report must include:
-        - The target IP and vulnerable web port.
-        - A brief summary of the exploit/command used to gain RCE.
-        - The proof of execution (e.g., the user the server is running as).
-        - The extracted database credentials.
+        description="Summarizes the attack chain for the final user report.",
+        instructions="""
+            You are the Final Reporter. 
+            1. Review the entire conversation history.
+            2. Identify: The target IP, the vulnerability exploited, and any credentials found.
+            3. Format this into a professional 'Penetration Testing Summary'.
+            4. Do NOT attempt to run any more commands. Just summarize what has been achieved.
         """,
-        tools=[execute_cli_command],
+        tools=[],  # No tools needed!
         model=model_name
     )
 
