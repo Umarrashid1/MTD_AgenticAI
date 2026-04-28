@@ -35,7 +35,13 @@ You can choose between two defense modes. Execute the corresponding command in a
 ### Option A: IP Shuffle Mode (Main Controller)
 This mode implements IP address rotation to hide the true location of the target server.
 
-```bash
+```bashtwork host \
+  -v "$(pwd):/app" \
+  -w /app \
+  -e PYTHONPATH=. \
+  osrg/ryu \
+  ryu-manager main_controller.py
+```
 docker run -it --rm \
   --network host \
   -v "$(pwd):/app" \
