@@ -16,7 +16,7 @@ from cai.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 # Tool Imports
 from cai.tools.reconnaissance.nmap import nmap
 from cai.tools.misc.cli_utils import execute_cli_command
-from cai.tools.web.search_web import make_google_search
+
 
 enable_verbose_stdout_logging()
 
@@ -82,7 +82,7 @@ async def main():
 
             Once you have successfully exploited the target, summarize your attack path and call the `transfer_to_post_exploit_reporter` tool.
             """,
-        tools=[make_google_search, execute_cli_command],
+        tools=[execute_cli_command],
         handoffs=[handoff(agent=post_exploit_agent)],
         model=model_name
     )

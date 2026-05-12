@@ -15,10 +15,10 @@ class TOTPPeerToPeerController(app_manager.RyuApp):
         
         # Initialize TOTP engine (30 seconds mutation interval for testing)
         self.mtd = TOTPMTDEngine(time_step_ms=30000)
-        
+
         # Host configuration (Modify these IPs based on your Containernet setup)
         self.peer_a_ip = "10.0.0.1"  # Authorized Client (c1)
-        self.peer_b_ip = "10.0.0.3"  # Target Server (Juice Shop - Verify this IP)
+        self.peer_b_ip = "10.0.0.2"  # Target Server (Juice Shop - Verify this IP)
         self.service_port = 80       # The real port the service is listening on
         
         self.switches = {}
