@@ -110,7 +110,7 @@ async def main():
             3. Immediately call the `transfer_to_exploit_operator` tool.
             """,
         tools=[nmap],
-        handoffs=[handoff(agent=exploit_agent)],
+        handoffs=[handoff(agent=exploit_agent, input_filter=handoff_filters.remove_tool_calls())],
         model=model_name
     )
 
