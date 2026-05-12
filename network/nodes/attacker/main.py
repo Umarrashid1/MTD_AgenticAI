@@ -138,7 +138,7 @@ async def main():
             1. Review the entire conversation history.
             2. Identify: The target IP, the vulnerability exploited, and any credentials found.
             3. Format this into a professional 'Penetration Testing Summary'.
-            4. Do NOT attempt to run any more commands. Just summarize what has been achieved.
+            4. Do NOT attempt to run any more commands or tools. Just summarize what has been achieved.
         """,
         tools=[],
         model=model_name
@@ -175,7 +175,7 @@ async def main():
         description="Agent focused on scanning networks and identifying services.",
         handoff_description="Lead agent that performs network scanning and reconnaissance.",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-            You are the Reconnaissance specialist. Your objective is to find the host running Metasploitable2.
+            You are the Reconnaissance specialist. Your objective is to find the vulnerable host.
             Your IP is 10.0.0.11. DO NOT scan your own IP.
 
             CRITICAL RULES FOR NMAP:
