@@ -2,6 +2,7 @@ import os
 import asyncio
 from typing import Any
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 # Import the specific Pydantic model needed for raw streaming
 from openai.types.responses import ResponseTextDeltaEvent
@@ -18,7 +19,20 @@ from cai.tools.misc.cli_utils import execute_cli_command
 
 enable_verbose_stdout_logging()
 
+# ---------------------------------------------------------
+# STRUCTURED DATA MODELS
+# ---------------------------------------------------------
+class IntelBriefing(BaseModel):
+    """
+    Structured payload for transferring intelligence between agents.
+    Using a Pydantic model prevents validation errors if the LLM
+    outputs JSON (which tool-calling models prefer to do).
+    """
+    summary: str
 
+# ---------------------------------------------------------
+# UTILS & HOOKS
+# ---------------------------------------------------------
 class MTDDebbugger(RunHooks):
     async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Any) -> None:
         tool_name = getattr(tool, 'name', getattr(tool, '__name__', str(tool)))
@@ -46,11 +60,11 @@ def scrub_nmap_history(data: Any) -> Any:
         new_items=tuple(filtered_new)
     )
 
-async def receive_intel_briefing(context: RunContextWrapper[Any], target_intel: str) -> None:
+async def receive_intel_briefing(context: RunContextWrapper[Any], target_intel: IntelBriefing) -> None:
     """
-    Catches the summary from the Recon agent and prints it before the Exploit agent starts.
+    Catches the structured summary from the Recon agent.
     """
-    print(f"\n\033[95m[*] INTER-AGENT COMMS: Recon passed the following intel to Exploit:\n{target_intel}\033[0m")
+    print(f"\n\033[95m[*] INTER-AGENT COMMS: Recon passed the following intel to Exploit:\n{target_intel.summary}\033[0m")
 
 
 async def main():
@@ -72,7 +86,7 @@ async def main():
             3. Format this into a professional 'Penetration Testing Summary'.
             4. Do NOT attempt to run any more commands. Just summarize what has been achieved.
         """,
-        tools=[],  # No tools needed!
+        tools=[],
         model=model_name
     )
 
@@ -81,23 +95,21 @@ async def main():
     # ---------------------------------------------------------
     exploit_agent = Agent(
         name="Exploit_Operator",
-        description="Agent focused on gaining Remote Code Execution (RCE) on vulnerable services.",
+        description="Agent focused on gaining Remote Code Execution (RCE).",
         handoff_description="Specialized agent for running exploitation commands to gain RCE.",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
             You are the Exploitation specialist. You have JUST received control of the operation.
-            Look at the intel briefing argument passed to you to find the target IP and open ports.
+            Look at the intel briefing provided in the handoff to find the target IP and open ports.
 
             AUTONOMOUS EXPLOITATION WORKFLOW:
-            1. Use the `execute_cli_command` tool to test payloads or command line techniques against the target.
-            2. Iterate. If a command fails, search for a different method and try again.
+            1. Use the `execute_cli_command` tool to test payloads or techniques against the target.
+            2. Iterate. If a command fails, try a different method.
 
             CRITICAL RULES:
             - YOU DO NOT HAVE NMAP. DO NOT TRY TO RUN NMAP.
             - You ONLY have the `execute_cli_command` tool.
             - DO NOT call any handoff tools until you have established RCE.
-            - You MUST establish RCE or verify your exploit works (e.g., by reading a file or running `whoami`) before handing off.
-
-            Once you have successfully exploited the target, summarize your attack path and call the `transfer_to_post_exploit_reporter` tool.
+            - Once you established RCE, call the `transfer_to_post_exploit_reporter` tool.
             """,
         tools=[execute_cli_command],
         handoffs=[handoff(agent=post_exploit_agent)],
@@ -105,13 +117,13 @@ async def main():
     )
 
     # ---------------------------------------------------------
-    # TACTICAL HANDOFF CONFIGURATION
+    # TACTICAL HANDOFF CONFIGURATION (The "shift change")
     # ---------------------------------------------------------
     tactical_handoff = handoff(
         agent=exploit_agent,
         on_handoff=receive_intel_briefing,
-        input_type=str,                    # Forces the LLM to write a summary payload
-        input_filter=scrub_nmap_history    # Wipes the nmap spam from the chat log
+        input_type=IntelBriefing,          # Uses Pydantic for bulletproof validation
+        input_filter=scrub_nmap_history    # Wipes the nmap noise
     )
 
     # ---------------------------------------------------------
@@ -119,7 +131,7 @@ async def main():
     # ---------------------------------------------------------
     recon_agent = Agent(
         name="Recon_Lead",
-        description="Agent focused on scanning networks and identifying vulnerable services.",
+        description="Agent focused on scanning networks and identifying services.",
         handoff_description="Lead agent that performs network scanning and reconnaissance.",
         instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
             You are the Reconnaissance specialist. Your objective is to find the host running Metasploitable2.
@@ -127,16 +139,16 @@ async def main():
 
             CRITICAL RULES FOR NMAP:
             1. STEP 1: Run a fast ping sweep: `nmap -sn 10.0.0.0/24`
-            2. STEP 2: Run a targeted port scan ONLY on the live IPs you found (excluding 10.0.0.11) using: `-T5 --min-rate 10000 -p 80,21,22`
-            3. STOP SCANNING immediately once you identify a target with open ports. Do not keep scanning down hosts.
+            2. STEP 2: Run a targeted port scan ONLY on the live IPs found (excluding 10.0.0.11) using: `-T5 --min-rate 10000 -p 80,21,22`
+            3. STOP SCANNING once you identify a target with open ports.
 
             HANDOFF INSTRUCTIONS:
             Once you find the target IP, immediately call the handoff tool. 
-            You MUST pass a string argument to the handoff tool containing:
+            You MUST provide a 'summary' field containing:
             "Target IP is [IP]. Open ports: [Ports]."
         """,
         tools=[nmap],
-        handoffs=[tactical_handoff], # Use the stateful tactical handoff
+        handoffs=[tactical_handoff],
         model=model_name
     )
 
@@ -152,13 +164,13 @@ async def main():
             hooks=debug_hooks
         )
 
-        # Iterate over the stream events and print raw text deltas in real-time
+        # Print raw text deltas in real-time
         async for event in result.stream_events():
             if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
                 print(event.data.delta, end="", flush=True)
 
     except Exception as e:
-        print(f"\n[-] Framework Error: {e}")
+        print(f"\n\033[91m[-] Framework Error: {e}\033[0m")
 
 
 if __name__ == "__main__":
