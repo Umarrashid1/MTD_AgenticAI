@@ -10,13 +10,11 @@ load_dotenv('/app/.env', override=True)
 
 # CAI Imports
 from cai.sdk.agents import Agent, Runner, RunHooks, RunContextWrapper, handoff, enable_verbose_stdout_logging
-from cai.sdk.agents.extensions import handoff_filters
 from cai.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 
 # Tool Imports
 from cai.tools.reconnaissance.nmap import nmap
 from cai.tools.misc.cli_utils import execute_cli_command
-
 
 enable_verbose_stdout_logging()
 
@@ -32,6 +30,22 @@ class MTDDebbugger(RunHooks):
 
     async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
         print(f"\n\033[93m[!] Agent '{agent.name}' finished its phase.\033[0m")
+
+
+def scrub_nmap_history(data: Any) -> Any:
+    """
+    Surgically removes nmap tool calls from the context history.
+    This prevents the Exploit_Operator from trying to copy the Recon_Lead.
+    """
+    # Keep items that DO NOT contain the word 'nmap' in their raw string representation
+    filtered_pre = [item for item in data.pre_handoff_items if 'nmap' not in str(item).lower()]
+    filtered_new = [item for item in data.new_items if 'nmap' not in str(item).lower()]
+
+    return type(data)(
+        input_history=data.input_history,
+        pre_handoff_items=tuple(filtered_pre),
+        new_items=tuple(filtered_new)
+    )
 
 
 async def main():
@@ -69,14 +83,12 @@ async def main():
             Read the chat history to find the target IP and open ports provided by the Recon agent.
 
             AUTONOMOUS EXPLOITATION WORKFLOW:
-            1. If you are unsure how to exploit the service (e.g., Apache on port 80, WebDAV, or DVWA), use the `make_google_search` tool. 
-               - Ask specifically for "Command line techniques using curl to exploit [Service Name]".
-            2. Read the intelligence provided by the search tool.
-            3. Use the `execute_cli_command` tool to test the payloads or techniques you just learned against the target.
-            4. Iterate. If a command fails, search for a different method and try again.
+            1. Use the `execute_cli_command` tool to test payloads or command line techniques against the target.
+            2. Iterate. If a command fails, search for a different method and try again.
 
             CRITICAL RULES:
-            - DO NOT attempt to call the `nmap` tool. That was the previous agent's job. You ONLY have the `execute_cli_command` and `make_google_search` tools.
+            - YOU DO NOT HAVE NMAP. DO NOT TRY TO RUN NMAP.
+            - You ONLY have the `execute_cli_command` tool.
             - DO NOT call any handoff tools until you have established RCE.
             - You MUST establish RCE or verify your exploit works (e.g., by reading a file or running `whoami`) before handing off.
 
@@ -105,7 +117,8 @@ async def main():
             Once its found, immediately call the handoff tool to pass control to the exploit operator.
         """,
         tools=[nmap],
-        handoffs=[handoff(agent=exploit_agent)],
+        # Inject the custom filter here to scrub nmap history during the handoff
+        handoffs=[handoff(agent=exploit_agent, input_filter=scrub_nmap_history)],
         model=model_name
     )
 
