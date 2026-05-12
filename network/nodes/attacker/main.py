@@ -94,7 +94,8 @@ async def receive_intel_briefing(context: RunContextWrapper[SwarmState], target_
 # ---------------------------------------------------------
 # DYNAMIC PROMPT FOR THE EXPLOIT OPERATOR
 # ---------------------------------------------------------
-def get_exploit_instructions(context: RunContextWrapper[SwarmState]) -> str:
+# Added *args, **kwargs to absorb the second argument (the Agent object)
+def get_exploit_instructions(context: RunContextWrapper[SwarmState], *args, **kwargs) -> str:
     """
     This function runs the exact moment the Exploit agent wakes up.
     It grabs the intel from memory and hardcodes it into the system prompt.
@@ -119,7 +120,6 @@ def get_exploit_instructions(context: RunContextWrapper[SwarmState]) -> str:
         - DO NOT call any handoff tools until you have established RCE.
         - Once you established RCE, call the `transfer_to_post_exploit_reporter` tool.
         """
-
 
 async def main():
     model_name = os.environ.get("CAI_MODEL", "ollama/qwen3.6:35b")
