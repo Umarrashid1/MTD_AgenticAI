@@ -38,6 +38,24 @@ class SwarmState:
 # UTILS & HOOKS
 # ---------------------------------------------------------
 class MTDDebbugger(RunHooks):
+    async def on_agent_start(self, context: RunContextWrapper, agent: Agent) -> None:
+        # 1. Resolve Instructions (System Prompt)
+        # We check if it's a function (like our get_exploit_instructions) or a string
+        instructions = agent.instructions
+        if callable(instructions):
+            instructions = instructions(context)
+
+        print(f"\n\033[1;36m{'=' * 60}\033[0m")
+        print(f"\033[1;36m[ACTIVE AGENT]: {agent.name}\033[0m")
+        print(f"\n\033[1;35m[SYSTEM PROMPT]:\033[0m\n{instructions}")
+
+        # 2. Print User/History (optional but helpful)
+        # This shows the last message or trigger that started this agent turn
+        print(f"\n\033[1;34m[LAST CONTEXT ITEM]:\033[0m")
+        # In CAI, the context often holds the current turn's input
+        print(f"{context.input_history if hasattr(context, 'input_history') else 'Initial Turn'}")
+        print(f"\033[1;36m{'=' * 60}\033[0m\n")
+
     async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Any) -> None:
         tool_name = getattr(tool, 'name', getattr(tool, '__name__', str(tool)))
         print(f"\n\033[94m[~] Agent '{agent.name}' is using: {tool_name}\033[0m")
@@ -48,7 +66,6 @@ class MTDDebbugger(RunHooks):
 
     async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
         print(f"\n\033[93m[!] Agent '{agent.name}' finished its phase.\033[0m")
-
 
 def scrub_nmap_history(data: Any) -> Any:
     """Surgically removes nmap tool calls from the context history."""
