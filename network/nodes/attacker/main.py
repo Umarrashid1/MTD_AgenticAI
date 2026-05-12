@@ -3,6 +3,7 @@ import asyncio
 from typing import Any
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from dataclasses import dataclass  # <-- NEW IMPORT
 
 # Import the specific Pydantic model needed for raw streaming
 from openai.types.responses import ResponseTextDeltaEvent
@@ -19,16 +20,19 @@ from cai.tools.misc.cli_utils import execute_cli_command
 
 enable_verbose_stdout_logging()
 
+
 # ---------------------------------------------------------
-# STRUCTURED DATA MODELS
+# STRUCTURED DATA & MEMORY MODELS
 # ---------------------------------------------------------
 class IntelBriefing(BaseModel):
-    """
-    Structured payload for transferring intelligence between agents.
-    Using a Pydantic model prevents validation errors if the LLM
-    outputs JSON (which tool-calling models prefer to do).
-    """
     summary: str
+
+
+@dataclass
+class SwarmState:
+    """Holds global memory that agents can share during the run."""
+    target_intel: str = "No intel provided yet."
+
 
 # ---------------------------------------------------------
 # UTILS & HOOKS
@@ -47,10 +51,7 @@ class MTDDebbugger(RunHooks):
 
 
 def scrub_nmap_history(data: Any) -> Any:
-    """
-    Surgically removes nmap tool calls from the context history.
-    This prevents the Exploit_Operator from trying to copy the Recon_Lead.
-    """
+    """Surgically removes nmap tool calls from the context history."""
     filtered_pre = [item for item in data.pre_handoff_items if 'nmap' not in str(item).lower()]
     filtered_new = [item for item in data.new_items if 'nmap' not in str(item).lower()]
 
@@ -60,11 +61,47 @@ def scrub_nmap_history(data: Any) -> Any:
         new_items=tuple(filtered_new)
     )
 
-async def receive_intel_briefing(context: RunContextWrapper[Any], target_intel: IntelBriefing) -> None:
+
+async def receive_intel_briefing(context: RunContextWrapper[SwarmState], target_intel: IntelBriefing) -> None:
     """
-    Catches the structured summary from the Recon agent.
+    Catches the structured summary from the Recon agent and SAVES IT TO MEMORY.
     """
-    print(f"\n\033[95m[*] INTER-AGENT COMMS: Recon passed the following intel to Exploit:\n{target_intel.summary}\033[0m")
+    print(
+        f"\n\033[95m[*] INTER-AGENT COMMS: Recon passed the following intel to Exploit:\n{target_intel.summary}\033[0m")
+
+    # Inject the intel into the Swarm's shared memory state
+    if context.context:
+        context.context.target_intel = target_intel.summary
+
+
+# ---------------------------------------------------------
+# DYNAMIC PROMPT FOR THE EXPLOIT OPERATOR
+# ---------------------------------------------------------
+def get_exploit_instructions(context: RunContextWrapper[SwarmState]) -> str:
+    """
+    This function runs the exact moment the Exploit agent wakes up.
+    It grabs the intel from memory and hardcodes it into the system prompt.
+    """
+    intel = context.context.target_intel if context.context else "Unknown Target"
+
+    return f"""{RECOMMENDED_PROMPT_PREFIX}
+        You are the Exploitation specialist. You have JUST received control of the operation.
+
+        =========================================
+        TARGET INTELLIGENCE BRIEFING:
+        {intel}
+        =========================================
+
+        AUTONOMOUS EXPLOITATION WORKFLOW:
+        1. Use the `execute_cli_command` tool to test payloads or techniques against the target IP listed above.
+        2. Iterate. If a command fails, try a different method.
+
+        CRITICAL RULES:
+        - YOU DO NOT HAVE NMAP. DO NOT TRY TO RUN NMAP.
+        - You ONLY have the `execute_cli_command` tool.
+        - DO NOT call any handoff tools until you have established RCE.
+        - Once you established RCE, call the `transfer_to_post_exploit_reporter` tool.
+        """
 
 
 async def main():
@@ -97,33 +134,20 @@ async def main():
         name="Exploit_Operator",
         description="Agent focused on gaining Remote Code Execution (RCE).",
         handoff_description="Specialized agent for running exploitation commands to gain RCE.",
-        instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-            You are the Exploitation specialist. You have JUST received control of the operation.
-            Look at the intel briefing provided in the handoff to find the target IP and open ports.
-
-            AUTONOMOUS EXPLOITATION WORKFLOW:
-            1. Use the `execute_cli_command` tool to test payloads or techniques against the target.
-            2. Iterate. If a command fails, try a different method.
-
-            CRITICAL RULES:
-            - YOU DO NOT HAVE NMAP. DO NOT TRY TO RUN NMAP.
-            - You ONLY have the `execute_cli_command` tool.
-            - DO NOT call any handoff tools until you have established RCE.
-            - Once you established RCE, call the `transfer_to_post_exploit_reporter` tool.
-            """,
+        instructions=get_exploit_instructions,  # <--- Pass the function here, not a string!
         tools=[execute_cli_command],
         handoffs=[handoff(agent=post_exploit_agent)],
         model=model_name
     )
 
     # ---------------------------------------------------------
-    # TACTICAL HANDOFF CONFIGURATION (The "shift change")
+    # TACTICAL HANDOFF CONFIGURATION
     # ---------------------------------------------------------
     tactical_handoff = handoff(
         agent=exploit_agent,
         on_handoff=receive_intel_briefing,
-        input_type=IntelBriefing,          # Uses Pydantic for bulletproof validation
-        input_filter=scrub_nmap_history    # Wipes the nmap noise
+        input_type=IntelBriefing,
+        input_filter=scrub_nmap_history
     )
 
     # ---------------------------------------------------------
@@ -157,11 +181,15 @@ async def main():
     print("[*] Launching Operation (Recon -> Exploit -> Extract)...\n")
 
     try:
+        # Initialize the shared memory object
+        swarm_state = SwarmState()
+
         # Create the streaming result object
         result = Runner.run_streamed(
             recon_agent,
             input=mission_trigger,
-            hooks=debug_hooks
+            hooks=debug_hooks,
+            context=swarm_state  # <--- Pass the shared memory into the runner!
         )
 
         # Print raw text deltas in real-time
