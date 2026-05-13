@@ -104,12 +104,9 @@ def get_exploit_instructions(context: RunContextWrapper[SwarmState], *args, **kw
 
     return f"""{RECOMMENDED_PROMPT_PREFIX}
         You are the Exploitation specialist. You have JUST received control of the operation.
-
-        =========================================
         TARGET INTELLIGENCE BRIEFING:
         {intel}
-        =========================================
-
+       
         AUTONOMOUS EXPLOITATION WORKFLOW:
         1. Use the `execute_cli_command` tool to test payloads or techniques against the target IP listed above.
         2. Iterate. If a command fails, try a different method.
