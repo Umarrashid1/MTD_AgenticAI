@@ -96,3 +96,7 @@ containernet> a1 nmap -Pn -p 80 10.0.0.3
 ```
 
 **Expected Result:** The port will show as `filtered` or the host will appear down, proving that standard reconnaissance tools are neutralized by the proactive mutation layer.
+
+## Running the agentic pentester
+
+containernet> a1 python3 main.py
