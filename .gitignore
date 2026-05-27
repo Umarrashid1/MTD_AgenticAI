@@ -208,3 +208,7 @@ __marimo__/
 
 # personal notes
 notes/
+ 
+# not for project (personal impl and honey)
+Honey_MTD/
+test_MTD/

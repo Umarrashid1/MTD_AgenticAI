@@ -4,7 +4,7 @@ from ryu.controller.handler import CONFIG_DISPATCHER, set_ev_cls
 from ryu.ofproto import ofproto_v1_3
 from ryu.lib import hub
 
-# Import the TOTP engine created previously
+import config
 from totp_engine import TOTPMTDEngine
 
 class TOTPPeerToPeerController(app_manager.RyuApp):
@@ -13,16 +13,19 @@ class TOTPPeerToPeerController(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(TOTPPeerToPeerController, self).__init__(*args, **kwargs)
         
-        # Initialize TOTP engine (30 seconds mutation interval for testing)
-        self.mtd = TOTPMTDEngine(time_step_ms=30000)
+        # Initialize TOTP engine using variables from config.py
+        self.mtd = TOTPMTDEngine(
+            secret_key=config.SECRET_KEY, 
+            time_step_ms=config.TIME_STEP_MS
+        )
         
-        # Host configuration (Modify these IPs based on your Containernet setup)
-        self.peer_a_ip = "10.0.0.1"  # Authorized Client (c1)
-        self.peer_b_ip = "10.0.0.3"  # Target Server (Juice Shop - Verify this IP)
-        self.service_port = 80       # The real port the service is listening on
+        # Host configuration loaded from config.py
+        self.peer_a_ip = config.PEER_A_IP
+        self.peer_b_ip = config.PEER_B_IP
+        self.service_port = config.SERVICE_PORT
         
         self.switches = {}
-        # Start a thread to update flow rules every 30 seconds
+        # Start a thread to update flow rules dynamically
         self.updater_thread = hub.spawn(self._update_loop)
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -35,7 +38,8 @@ class TOTPPeerToPeerController(app_manager.RyuApp):
         """Infinite loop that calculates new OTPs and pushes them to the switches."""
         while True:
             ports = self.mtd.get_active_window()
-            self.logger.info("MTD Update - Active OTP Ports: %s", ports) # Log identifying the 3 active slots
+            # Log identifying the 3 active slots
+            self.logger.info("MTD Update - Active OTP Ports: %s", ports) 
             for datapath in self.switches.values():
                 self.install_peer_to_peer_rules(datapath)
             
@@ -46,15 +50,14 @@ class TOTPPeerToPeerController(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         
-        # FIX: Usa il metodo corretto per ottenere le porte dal motore TOTP!
         ports = self.mtd.get_active_window()
         dpid = datapath.id
 
         # ==========================================
-        # S2: EXTERNAL EDGE (Il Mutatore)
+        # S2: EXTERNAL EDGE (The Mutator)
         # ==========================================
         if dpid == 2:
-            # 1. OUTBOUND (Andata: c1 -> target): Nascondi la porta 80 mutandola in OTP
+            # 1. OUTBOUND (Forward: c1 -> target): Hide port 80 by mutating it into the OTP
             match_req = parser.OFPMatch(eth_type=0x0800, ip_proto=6, 
                                         ipv4_src=self.peer_a_ip, ipv4_dst=self.peer_b_ip, 
                                         tcp_dst=self.service_port)
@@ -62,7 +65,7 @@ class TOTPPeerToPeerController(app_manager.RyuApp):
                            parser.OFPActionOutput(ofproto.OFPP_NORMAL)]
             self.add_flow(datapath, 1100, match_req, actions_req, 101)
 
-            # 2. INBOUND (Ritorno: target -> c1): Ripristina l'OTP mutato alla porta 80 originale
+            # 2. INBOUND (Return: target -> c1): Restore the mutated OTP back to the original service port
             for otp in ports.values():
                 match_res = parser.OFPMatch(eth_type=0x0800, ip_proto=6, 
                                             ipv4_src=self.peer_b_ip, ipv4_dst=self.peer_a_ip, 
@@ -72,10 +75,10 @@ class TOTPPeerToPeerController(app_manager.RyuApp):
                 self.add_flow(datapath, 1100, match_res, actions_res, 101)
 
         # ==========================================
-        # S3: INTERNAL EDGE (Il Ripristinatore e Firewall)
+        # S3: INTERNAL EDGE (The Restorer and Firewall)
         # ==========================================
         elif dpid == 3:
-            # 1. INBOUND (Andata: c1 -> target): Riconosci l'OTP e ripristina a porta 80 per il server
+            # 1. INBOUND (Forward: c1 -> target): Recognize the OTP and restore to the service port for the server
             for otp in ports.values():
                 match_req = parser.OFPMatch(eth_type=0x0800, ip_proto=6, 
                                             ipv4_src=self.peer_a_ip, ipv4_dst=self.peer_b_ip, 
@@ -84,29 +87,28 @@ class TOTPPeerToPeerController(app_manager.RyuApp):
                                parser.OFPActionOutput(ofproto.OFPP_NORMAL)]
                 self.add_flow(datapath, 1100, match_req, actions_req, 101)
 
-            # 2. OUTBOUND (Ritorno: target -> c1): Nascondi la risposta della porta 80 mutandola in OTP
+            # 2. OUTBOUND (Return: target -> c1): Hide the service port response by mutating it into the OTP
             match_res = parser.OFPMatch(eth_type=0x0800, ip_proto=6, 
                                         ipv4_src=self.peer_b_ip, ipv4_dst=self.peer_a_ip, 
                                         tcp_src=self.service_port)
             actions_res = [parser.OFPActionSetField(tcp_src=ports['current']), 
                            parser.OFPActionOutput(ofproto.OFPP_NORMAL)]
-            self.add_flow(datapath, 1100, match_res, actions_res, 101)
+            self.add_flow(datapath, 1100, match_res, actions_res, 101)  
 
-            # 3. FIREWALL STEALTH (Blocca l'attaccante a1 e gli scanner)
-            # Qualsiasi pacchetto che cerchi di arrivare direttamente alla porta 80 viene scartato
+            # 3. STEALTH FIREWALL (Blocks unauthenticated attackers and scanners)
+            # Any packet attempting to reach the service port directly is dropped
             match_drop = parser.OFPMatch(eth_type=0x0800, ip_proto=6, 
                                          ipv4_dst=self.peer_b_ip, 
                                          tcp_dst=self.service_port)
-            actions_drop = [] # Array vuoto = DROP in OpenFlow
+            actions_drop = [] # Empty array = DROP in OpenFlow
             self.add_flow(datapath, 1000, match_drop, actions_drop, 101)
 
         # ==========================================
         # S1: CORE SWITCH
         # ==========================================
         elif dpid == 1:
-            pass
-
-
+            pass 
+    
     # --- STANDARD RYU HELPER FUNCTIONS ---
     def add_flow(self, datapath, priority, match, actions, cookie=0):
         ofproto = datapath.ofproto
