@@ -1,10 +1,11 @@
 import time
 import hashlib
 import hmac
+import config
 
 class TOTPMTDEngine:
-    def __init__(self, secret_key=b"secret_key_tesi", time_step_ms=30000): 
-        # Pre-shared secret and mutation interval 
+    def __init__(self, secret_key=config.SECRET_KEY, time_step_ms=config.TIME_STEP_MS): 
+        # Pre-shared secret and mutation interval loaded from config
         self.secret_key = secret_key
         self.time_step_ms = time_step_ms
 
@@ -22,11 +23,11 @@ class TOTPMTDEngine:
         # Take the last 2 bytes and convert to integer
         port = (ord(digest[-2]) << 8) | ord(digest[-1])
         
-        # Ensure it is not a well-known port 
+        # Ensure it does not conflict with well-known system ports (<= 1024)
         return port if port > 1024 else port + 1024
 
     def get_active_window(self):
-        # Returns [prev, current, next] slots to handle jitter 
+        # Returns [prev, current, next] slots to handle latency and jitter
         return {
             "prev": self._get_port(-1),
             "current": self._get_port(0),
