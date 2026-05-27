@@ -32,7 +32,6 @@ class TOTPPeerToPeerController(app_manager.RyuApp):
     def switch_features_handler(self, ev):
         datapath = ev.msg.datapath
         self.switches[datapath.id] = datapath
-        # Default table-miss entry could be added here if not present by default
 
     def _update_loop(self):
         """Infinite loop that calculates new OTPs and pushes them to the switches."""

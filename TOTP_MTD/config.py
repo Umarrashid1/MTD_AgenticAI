@@ -12,8 +12,7 @@ TIME_STEP_MS = 30000
 # ==========================================
 # NETWORK TOPOLOGY CONFIGURATION
 # ==========================================
-# Modify these IPs based on your specific Containernet setup
-PEER_A_IP = "10.0.0.11"    # Authorized Client (c1)
+PEER_A_IP = "10.0.0.1"    # Authorized Client (c1)
 PEER_B_IP = "10.0.0.3"    # Target Server (Victim / Juice Shop)
 
 # The actual real port the backend service is listening on
