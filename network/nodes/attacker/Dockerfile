@@ -28,6 +28,7 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Install the CAI framework
 RUN pip install --no-cache-dir cai-framework
+RUN pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
 #Mounted for now
 #COPY main.py /app/main.py
