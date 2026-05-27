@@ -3,7 +3,7 @@ import asyncio
 from typing import Any
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from dataclasses import dataclass  # <-- NEW IMPORT
+from dataclasses import dataclass
 
 # Import the specific Pydantic model needed for raw streaming
 from openai.types.responses import ResponseTextDeltaEvent
@@ -148,7 +148,7 @@ async def main():
         name="Exploit_Operator",
         description="Agent focused on gaining Remote Code Execution (RCE).",
         handoff_description="Specialized agent for running exploitation commands to gain RCE.",
-        instructions=get_exploit_instructions,  # <--- Pass the function here, not a string!
+        instructions=get_exploit_instructions,
         tools=[execute_cli_command],
         handoffs=[handoff(agent=post_exploit_agent)],
         model=model_name
@@ -203,7 +203,7 @@ async def main():
             recon_agent,
             input=mission_trigger,
             hooks=debug_hooks,
-            context=swarm_state  # <--- Pass the shared memory into the runner!
+            context=swarm_state
         )
 
         # Print raw text deltas in real-time
